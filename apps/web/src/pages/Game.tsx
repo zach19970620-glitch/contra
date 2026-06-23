@@ -102,13 +102,9 @@ export default function Game({ session, onLeave }: Props) {
       blitFramebuffer();
     }
 
-    const titlePrefix = isSolo
-      ? "单机模式"
-      : `房间 ${session.roomId} · P${session.playerId}`;
-
     function setGameplayStatus(message: string) {
       if (statusRef.current) {
-        statusRef.current.textContent = `${titlePrefix} · ${message}`;
+        statusRef.current.textContent = message;
         return;
       }
       setStatus(message);
@@ -518,22 +514,33 @@ export default function Game({ session, onLeave }: Props) {
 
   return (
     <div className="app game-shell">
-      <div className="row">
-        <button className="secondary" onClick={onLeave}>
-          {isSolo ? "返回大厅" : "离开房间"}
-        </button>
-        <button className="secondary" onClick={() => void runDeterminismCheck()}>
-          确定性自检
-        </button>
-        <span className="status" ref={statusRef}>
-          {title} · {status}
+      <div className="hud">
+        <span className="hud__title">{title}</span>
+        <span className="hud__status" ref={statusRef}>
+          {status}
         </span>
+        <div className="hud__actions">
+          <button className="ghost" onClick={() => void runDeterminismCheck()}>
+            确定性自检
+          </button>
+          <button className="secondary" onClick={onLeave}>
+            {isSolo ? "返回大厅" : "离开房间"}
+          </button>
+        </div>
       </div>
-      <canvas ref={canvasRef} />
-      <div ref={hashRef} className="status">
-        WRAM hash: 0
+
+      <div className="monitor">
+        <canvas ref={canvasRef} />
       </div>
-      {determinism ? <div className="status">Determinism: {determinism}</div> : null}
+
+      <div className="telemetry">
+        <span ref={hashRef}>WRAM 0 · 音频 ~0ms</span>
+        {determinism ? (
+          <span>
+            自检 · <b>{determinism}</b>
+          </span>
+        ) : null}
+      </div>
     </div>
   );
 }
