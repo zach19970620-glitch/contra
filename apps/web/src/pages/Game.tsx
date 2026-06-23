@@ -23,11 +23,37 @@ type Props = {
 
 export default function Game({ session, onLeave }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const monitorRef = useRef<HTMLDivElement>(null);
   const hashRef = useRef<HTMLDivElement>(null);
   const statusRef = useRef<HTMLSpanElement>(null);
   const [status, setStatus] = useState("初始化…");
   const [determinism, setDeterminism] = useState<string | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const isSolo = session.mode === "solo";
+
+  useEffect(() => {
+    const onFullscreenChange = () => {
+      setIsFullscreen(document.fullscreenElement === monitorRef.current);
+    };
+    document.addEventListener("fullscreenchange", onFullscreenChange);
+    return () => document.removeEventListener("fullscreenchange", onFullscreenChange);
+  }, []);
+
+  async function toggleFullscreen() {
+    const monitor = monitorRef.current;
+    if (!monitor) {
+      return;
+    }
+    try {
+      if (document.fullscreenElement === monitor) {
+        await document.exitFullscreen();
+      } else {
+        await monitor.requestFullscreen();
+      }
+    } catch (error) {
+      console.warn("[fullscreen]", error);
+    }
+  }
 
   useEffect(() => {
     let disposed = false;
@@ -520,6 +546,9 @@ export default function Game({ session, onLeave }: Props) {
           {status}
         </span>
         <div className="hud__actions">
+          <button className="ghost" onClick={() => void toggleFullscreen()}>
+            {isFullscreen ? "退出全屏" : "全屏"}
+          </button>
           <button className="ghost" onClick={() => void runDeterminismCheck()}>
             确定性自检
           </button>
@@ -529,8 +558,10 @@ export default function Game({ session, onLeave }: Props) {
         </div>
       </div>
 
-      <div className="monitor">
-        <canvas ref={canvasRef} />
+      <div className="monitor-slot">
+        <div className="monitor" ref={monitorRef}>
+          <canvas ref={canvasRef} />
+        </div>
       </div>
 
       <div className="telemetry">

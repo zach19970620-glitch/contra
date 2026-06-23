@@ -48,6 +48,12 @@ body {
   min-height: 100%;
 }
 
+html:has(.game-shell),
+html:has(.game-shell) body {
+  overflow: hidden;
+  height: 100%;
+}
+
 body {
   min-height: 100vh;
   background:
@@ -535,13 +541,26 @@ button:disabled {
 
 /* ================================================================== GAME */
 
-.game-shell {
+.app.game-shell {
+  max-width: none;
+  width: 100%;
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
+  padding: 8px 12px;
+  box-sizing: border-box;
   display: grid;
-  gap: 18px;
-  max-width: 1100px;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.game-shell {
+  width: 100%;
+  min-height: 0;
 }
 
 .hud {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   flex-wrap: wrap;
@@ -581,12 +600,28 @@ button:disabled {
   padding: 10px 14px;
 }
 
+.monitor-slot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+  container-type: size;
+}
+
 .monitor {
+  --monitor-pad: clamp(14px, 2.4vw, 26px);
+
   position: relative;
-  margin: 0 auto;
-  padding: clamp(14px, 2.4vw, 26px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
   width: fit-content;
   max-width: 100%;
+  max-height: 100%;
+  margin: 0 auto;
+  padding: var(--monitor-pad);
   border-radius: 10px;
   background:
     linear-gradient(180deg, #11201704, transparent),
@@ -597,10 +632,29 @@ button:disabled {
     0 40px 90px -40px rgba(0, 0, 0, 1);
 }
 
+.monitor:fullscreen {
+  --monitor-pad: clamp(16px, 3vmin, 40px);
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  container-type: size;
+  border-radius: 0;
+}
+
+.monitor:fullscreen::after {
+  inset: var(--monitor-pad);
+  border-radius: 4px;
+}
+
 .monitor::after {
   content: "";
   position: absolute;
-  inset: clamp(14px, 2.4vw, 26px);
+  inset: var(--monitor-pad);
   pointer-events: none;
   border-radius: 6px;
   background: repeating-linear-gradient(
@@ -612,16 +666,25 @@ button:disabled {
   box-shadow: inset 0 0 90px rgba(0, 0, 0, 0.8);
 }
 
-canvas {
+.monitor-slot .monitor canvas,
+.monitor:fullscreen canvas {
   display: block;
-  width: min(100%, 760px);
+  width: min(
+    calc(100cqw - 2 * var(--monitor-pad)),
+    calc((100cqh - 2 * var(--monitor-pad)) * 256 / 240)
+  );
+  height: auto;
+  max-width: calc(100cqw - 2 * var(--monitor-pad));
+  max-height: calc(100cqh - 2 * var(--monitor-pad));
   aspect-ratio: 256 / 240;
   image-rendering: pixelated;
+  image-rendering: crisp-edges;
   background: #000;
   border-radius: 4px;
 }
 
 .telemetry {
+  flex-shrink: 0;
   display: flex;
   flex-wrap: wrap;
   gap: 10px 24px;
