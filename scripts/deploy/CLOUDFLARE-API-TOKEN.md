@@ -25,6 +25,7 @@ Account Resources：**Include** → 你的账号
 |------|-----|
 | ApiToken / `CLOUDFLARE_API_TOKEN` | 上面复制的 Token |
 | `CLOUDFLARE_ACCOUNT_ID` | `347bc1ac321e89f0efd5ed1611c18060` |
+| `NODE_VERSION`（可选） | `22`（Wrangler 4.x 要求；仓库已有 `.node-version` 时可不设） |
 | `VITE_SIGNALING_URL` | `wss://signal.zachuse.top/ws` |
 | `VITE_ICE_SERVERS` | JSON 单行（含 coturn 密码） |
 
@@ -63,4 +64,5 @@ Pages 项目 → **Custom domains** → `nes.zachuse.top`
 | Authentication 10000 | Token 改 **Edit Cloudflare Pages** |
 | workspace root | Deploy 加 `cd apps/web &&` |
 | Missing entry-point / assets | 用 `pages deploy dist`，勿用 `wrangler deploy` |
+| Wrangler requires Node ≥22 | `.node-version` / `.nvmrc` 设为 `22`，或 `NODE_VERSION=22` |
 | project not found | Dashboard 创建 Pages 项目 `contra-nes` |

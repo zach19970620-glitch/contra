@@ -52,6 +52,8 @@ npm ci && npm run build -w apps/web && cd apps/web && npx wrangler pages deploy 
 
 Token 须为 **Edit Cloudflare Pages**（见 [CLOUDFLARE-API-TOKEN.md](./CLOUDFLARE-API-TOKEN.md)）。
 
+**Node.js 版本**：Wrangler 4.x 要求 **Node ≥22**。仓库根目录已有 `.node-version` / `.nvmrc`（内容为 `22`）；若 Dashboard 有 Node 版本选项，也选 **22**。
+
 若是**经典 Pages**（有 Build output directory、Deploy 可留空）：
 
 | 项 | 值 |

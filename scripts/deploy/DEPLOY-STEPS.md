@@ -358,7 +358,7 @@ Token 模板：**Edit Cloudflare Pages**（见 [CLOUDFLARE-API-TOKEN.md](./CLOUD
 |------|-------|
 | `VITE_ICE_SERVERS` | `[{"urls":"stun:coturn.zachuse.top:3478"},{"urls":"turn:coturn.zachuse.top:3478","username":"contra","credential":"你的TURN密码"}]` |
 
-- [ ] **11.5** **Settings** → **Environment** → **Production** → **Node.js version** 设为 **20**
+- [ ] **11.5** **Settings** → **Environment** → **Production** → **Node.js version** 设为 **22**（Wrangler 4.x 要求 Node ≥22；仓库根目录 `.node-version` 已写 `22`）
 
 - [ ] **11.6** 点击 **Save and Deploy**，等待构建成功
 
@@ -402,10 +402,11 @@ Token 模板：**Edit Cloudflare Pages**（见 [CLOUDFLARE-API-TOKEN.md](./CLOUD
 
 | 现象 | 处理 |
 |------|------|
-| Pages 构建失败 | 看 Build log；确认 Node 20、`npm ci` 能跑通 |
+| Pages 构建失败 | 看 Build log；确认 Node **22**（Wrangler 4.x）、`npm ci` 能跑通 |
 | wrangler Authentication 10000 | Token 改用 **Edit Cloudflare Pages** 模板 |
 | wrangler workspace 错误 | Deploy 加 `cd apps/web &&` |
 | Missing entry-point / assets | 用 `pages deploy dist`，勿用 `wrangler deploy` |
+| Wrangler 要求 Node ≥22 | 根目录 `.node-version` / `.nvmrc` 设为 `22`，或 Build 环境变量 `NODE_VERSION=22` |
 | 打不开 nes.zachuse.top | 检查 Pages 自定义域 SSL；DNS 是否橙云 |
 | 信令连不上 | `dig signal.zachuse.top` 是否 43.136.63.40；nginx/contra-signaling 是否 active |
 | Trickle ICE 无 relay | turn 是否灰云；UDP 3478、60000–60010 防火墙；coturn 密码是否一致 |
