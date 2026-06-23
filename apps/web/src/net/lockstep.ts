@@ -14,6 +14,8 @@ export class LockstepSync {
   private readonly localPlayer: 1 | 2;
   private currentFrame = 0;
   private simulatedFrames = 0;
+  /** 本机已通过 tick/bootstrap 提交过的最大帧号，防止收包追帧时越过输入管道 */
+  private highestLocalSubmittedFrame = -1;
   private readonly frames = new Map<number, FrameInputs>();
   private onStep: ((frame: number, p1: number, p2: number) => void) | null = null;
 
@@ -28,7 +30,15 @@ export class LockstepSync {
   reset() {
     this.currentFrame = 0;
     this.simulatedFrames = 0;
+    this.highestLocalSubmittedFrame = -1;
     this.frames.clear();
+  }
+
+  private recordLocalSubmitted(frame: number) {
+    this.highestLocalSubmittedFrame = Math.max(
+      this.highestLocalSubmittedFrame,
+      frame,
+    );
   }
 
   applyInput(packet: InputPacket) {
@@ -51,6 +61,7 @@ export class LockstepSync {
         buttons: 0,
       };
       this.applyInput(packet);
+      this.recordLocalSubmitted(frame);
       send(packet);
     }
   }
@@ -89,8 +100,9 @@ export class LockstepSync {
       buttons: localButtons,
     };
     this.applyInput(packet);
+    this.recordLocalSubmitted(submitFrame);
     send(packet);
-    return this.tryAdvancePending(1);
+    return this.tryAdvancePending();
   }
 
   /** 双方输入已齐时连续推进，用于收包后立即追帧 */
@@ -103,6 +115,12 @@ export class LockstepSync {
   }
 
   tryAdvance() {
+    if (
+      this.currentFrame >= INPUT_DELAY &&
+      this.highestLocalSubmittedFrame < this.currentFrame
+    ) {
+      return false;
+    }
     const entry = this.frames.get(this.currentFrame);
     if (!entry || entry.p1 === undefined || entry.p2 === undefined) {
       return false;

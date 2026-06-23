@@ -314,10 +314,8 @@ export default function Game({ session, onLeave }: Props) {
             pendingInputPackets.push(packet);
             return;
           }
+          // 收包只缓存输入；推进只在 tick 里对称进行，避免越过本地 input delay 管道
           lockstep!.applyInput(packet);
-          if (lockstepReady) {
-            lockstep!.tryAdvancePending();
-          }
           markBootstrapComplete();
           updateSyncStatus?.();
         };
