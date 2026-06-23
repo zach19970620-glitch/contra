@@ -40,7 +40,7 @@ npm run setup:certs
 
 ```bash
 npm install
-npm run build:wasm   # 首次必须
+npm run build:wasm   # 可选：修改 crates/contra-wasm 后需重新编译；仓库已含预编译 pkg
 npm run dev          # 同时启动 web + signaling
 ```
 

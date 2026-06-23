@@ -1,0 +1,15 @@
+{
+  "name": "contra-wasm",
+  "type": "module",
+  "version": "0.1.0",
+  "files": [
+    "contra_wasm_bg.wasm",
+    "contra_wasm.js",
+    "contra_wasm.d.ts"
+  ],
+  "main": "contra_wasm.js",
+  "types": "contra_wasm.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}
