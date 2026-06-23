@@ -9,9 +9,12 @@ Group=root
 WorkingDirectory=/opt/contra/apps/signaling
 Environment=PORT=8080
 Environment=NODE_ENV=production
+Environment=HOME=/root
+Environment=NVM_DIR=/root/.nvm
+# nvm 用户：复制 signaling.env.example → /etc/contra/signaling.env 并设置 NODE_BIN
+EnvironmentFile=-/etc/contra/signaling.env
 StandardOutput=journal
 StandardError=journal
-# 203/EXEC：node 路径不对；1/FAILURE：缺 dist 或 npm 依赖 — 见 journalctl
 ExecStart=/opt/contra/scripts/deploy/start-signaling.sh
 Restart=on-failure
 RestartSec=5

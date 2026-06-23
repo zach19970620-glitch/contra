@@ -261,6 +261,16 @@ ls -la /opt/contra/apps/signaling/dist/index.js
 
 - [ ] **9.2** 安装 systemd 服务：
 
+**若 Node 用 nvm 安装**（systemd 读不到 nvm 的 PATH，需额外一步）：
+
+```bash
+mkdir -p /etc/contra
+echo "NODE_BIN=$(which node)" | sudo tee /etc/contra/signaling.env
+cat /etc/contra/signaling.env   # 应类似 /root/.nvm/versions/node/v20.x.x/bin/node
+```
+
+然后：
+
 ```bash
 sudo chmod +x /opt/contra/scripts/deploy/start-signaling.sh
 sudo cp /opt/contra/scripts/deploy/contra-signaling.service /etc/systemd/system/
@@ -390,6 +400,7 @@ curl -I https://signal.zachuse.top/ws
 | 能连上但不同步 | 见 `docs/lockstep-sync-lessons.md`；确认 P1/P2 都 ✓ |
 | certbot 失败 | DNS 未生效；80/443 未放行；OpenCloudOS 需先 `dnf install epel-release certbot python3-certbot-nginx` |
 | coturn 启动失败 | 配置应在 `/etc/coturn/turnserver.conf`；检查 `journalctl -u coturn` |
+| contra-signaling 127 / node 不在 PATH | nvm 用户：见第 9.2 步 `NODE_BIN` 写入 `/etc/contra/signaling.env` |
 | contra-signaling 203/EXEC | `which node` 为空 → 重装 Node 20；或 `dist/index.js` 不存在 → `npm run build -w apps/signaling` |
 | nginx 502 / 信令不通 | 执行 `setsebool -P httpd_can_network_connect 1`；确认 `contra-signaling` 为 active |
 | `npm install` 报错 | 确认 Node >= 20（NodeSource RPM） |
