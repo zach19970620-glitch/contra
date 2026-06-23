@@ -110,7 +110,7 @@ npm run build
 | Output directory | `apps/web/dist` |
 | Node | `20` |
 
-Production 环境变量：
+Production 环境变量： 
 
 ```bash
 VITE_SIGNALING_URL=wss://signal.zachuse.top/ws
