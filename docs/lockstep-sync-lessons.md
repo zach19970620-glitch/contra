@@ -175,7 +175,24 @@ copyFramebuffer(target: Uint8ClampedArray) {
 
 ---
 
-## 10. 后续演进方向
+## 12. Rollback 网帧（联机）
+
+已替换 Lockstep，核心流程：
+
+1. **每帧立即推进**：本地输入立刻发送；远端输入未到则用 `lastRemoteInput` 预测
+2. **每帧前快照**：`save_state_at(frame)` 存入 WASM 快照环（32 槽）
+3. **迟到且预测错误**：`load_state_at(fromFrame)` → 重模拟至当前帧
+4. **重模拟中间帧**不渲染/不推音频，仅最后一帧输出
+
+| 常量 | 值 |
+|------|-----|
+| `MAX_ROLLBACK_FRAMES` | 16 |
+| 预测策略 | 沿用上一帧远端按键 |
+
+状态栏：`Rollback 同步中 · 帧 N · 回滚 R 次 · P1/P2 ✓/×`
+
+**注意**：回滚窗口外迟到包会被丢弃（console warn）；高延迟环境可增大 `MAX_ROLLBACK_FRAMES` 或 `SNAPSHOT_SLOTS`。
+
 
 - **Rollback 网帧**：输入延迟更低、容忍丢包，但实现复杂度更高。
 - **固定 timestep + 输入预测**：改善手感，需与确定性模拟权衡。
@@ -216,3 +233,22 @@ copyFramebuffer(target: Uint8ClampedArray) {
 - **动态 resample**：若 WASM 输出采样率与 48kHz 帧长不完全一致，做轻量 resample
 - **联机**：lockstep 本身有 1 帧 input delay，听感可接受；勿为「追帧」在单端多跑模拟
 - 用 `audioContext.outputLatency` 在调试 HUD 显示估算总延迟
+
+### 音频 pull 驱动（单机）
+
+| 模式 | 驱动方 | 说明 |
+|------|--------|------|
+| **pull**（单机） | AudioWorklet | 缓冲低于目标水位或 underrun 时 `postMessage('pull')`，主线程 `drainPull()` 步进模拟器 |
+| **push**（联机） | Lockstep tick | 每模拟帧 push 音频；联机不能按音频自由加速 |
+
+单机 rAF **只负责 blit + HUD**，模拟步进由音频消费速率拉动，音画天然对齐。
+
+Worklet 低水位 ≈ `TARGET * 0.55`；单次 pull 最多步进 3 帧，防止主线程阻塞。
+
+
+| 优化 | 说明 |
+|------|------|
+| **WebGL `texSubImage2D`** | 替代 `putImageData`，CPU 占用更低，像素缩放更清晰 |
+| **统一 rAF 循环** | 单机 / 联机 lockstep 共用 fixed timestep，去掉 `setInterval` 漂移 |
+| **HUD 节流 400ms** | `wramHash()` 与状态栏不再每帧调用，减少 WASM + React 开销 |
+| **音频总延迟** | HUD 显示 `缓冲 + outputLatency`，便于调参 |

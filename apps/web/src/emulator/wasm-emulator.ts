@@ -79,6 +79,14 @@ export class WasmEmulator {
     return this.core?.load_snapshot() ?? false;
   }
 
+  saveStateAt(frame: number) {
+    this.core?.save_state_at(frame);
+  }
+
+  loadStateAt(frame: number): boolean {
+    return this.core?.load_state_at(frame) ?? false;
+  }
+
   reset() {
     this.core?.reset();
   }

@@ -14,6 +14,12 @@ const FRAME_HEIGHT: usize = 240;
 const FRAME_BYTES: usize = FRAME_WIDTH * FRAME_HEIGHT * 4;
 /// ~48 kHz / 60 fps; actual frame size varies slightly by region/timing.
 const AUDIO_FRAME_CAPACITY: usize = 900;
+const SNAPSHOT_SLOTS: usize = 32;
+
+struct SnapshotSlot {
+    frame: u32,
+    deck: ControlDeck,
+}
 
 fn hash_bytes(data: &[u8]) -> u32 {
     let mut hash: u32 = 0x811c_9dc5;
@@ -33,6 +39,7 @@ fn apply_buttons(deck: &mut ControlDeck, player: Player, buttons: u8) {
 pub struct NesEmulator {
     deck: ControlDeck,
     snapshot: Option<ControlDeck>,
+    snapshot_slots: Vec<Option<SnapshotSlot>>,
     frame_buffer: Vec<u8>,
     audio_buffer: Vec<f32>,
 }
@@ -56,6 +63,7 @@ impl NesEmulator {
         Self {
             deck,
             snapshot: None,
+            snapshot_slots: (0..SNAPSHOT_SLOTS).map(|_| None).collect(),
             frame_buffer: vec![0; FRAME_BYTES],
             audio_buffer: Vec::with_capacity(AUDIO_FRAME_CAPACITY),
         }
@@ -133,8 +141,31 @@ impl NesEmulator {
         }
     }
 
+    pub fn save_state_at(&mut self, frame: u32) {
+        let idx = (frame as usize) % SNAPSHOT_SLOTS;
+        self.snapshot_slots[idx] = Some(SnapshotSlot {
+            frame,
+            deck: self.deck.clone(),
+        });
+    }
+
+    pub fn load_state_at(&mut self, frame: u32) -> bool {
+        let idx = (frame as usize) % SNAPSHOT_SLOTS;
+        let Some(slot) = &self.snapshot_slots[idx] else {
+            return false;
+        };
+        if slot.frame != frame {
+            return false;
+        }
+        self.deck = slot.deck.clone();
+        true
+    }
+
     pub fn reset(&mut self) {
         use tetanes_core::common::ResetKind;
         self.deck.reset(ResetKind::Soft);
+        for slot in &mut self.snapshot_slots {
+            *slot = None;
+        }
     }
 }

@@ -1,0 +1,26 @@
+# Coturn 示例 — 复制到服务器 /etc/turnserver.conf 后修改域名与密钥
+# 防火墙需放行：UDP/TCP 3478、TCP 5349、UDP 60000-60010（见 README）
+
+listening-port=3478
+tls-listening-port=5349
+listening-ip=0.0.0.0
+relay-ip=<你的公网 IPv4>
+external-ip=<你的公网 IPv4>
+
+realm=contra.example.com
+server-name=contra.example.com
+
+fingerprint
+lt-cred-mech
+user=contra:请换成强密码
+
+min-port=60000
+max-port=60010
+
+no-cli
+no-tlsv1
+no-tlsv1_1
+
+# 若用 certbot 证书：
+# cert=/etc/letsencrypt/live/contra.example.com/fullchain.pem
+# pkey=/etc/letsencrypt/live/contra.example.com/privkey.pem

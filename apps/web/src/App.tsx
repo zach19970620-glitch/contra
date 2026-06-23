@@ -1,6 +1,7 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import Game from "./pages/Game";
 import Lobby from "./pages/Lobby";
+import { getDefaultSignalingUrl } from "./config/webrtc";
 
 export type Session =
   | { mode: "solo" }
@@ -14,11 +15,7 @@ export type Session =
 
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
-  const defaultSignalingUrl = useMemo(() => {
-    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const host = window.location.hostname;
-    return `${protocol}//${host}:8080`;
-  }, []);
+  const defaultSignalingUrl = getDefaultSignalingUrl();
 
   if (session) {
     return <Game session={session} onLeave={() => setSession(null)} />;
@@ -28,7 +25,7 @@ export default function App() {
     <div className="app">
       <h1>Contra Online MVP</h1>
       <p className="status">
-        局域网联机 · Rust WASM 核心 · WebRTC Lockstep · 内置 ROM
+        联机 · 公网入口 nes.zachuse.top · Lockstep · 内置 ROM
       </p>
       <Lobby
         defaultSignalingUrl={defaultSignalingUrl}

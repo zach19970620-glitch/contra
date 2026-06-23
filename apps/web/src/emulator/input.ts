@@ -9,8 +9,8 @@ export const BUTTON = {
   Right: 0x80,
 } as const;
 
-/** 统一键位：WASD + J/K + Enter/Space */
-export const KEYMAP: Record<string, number> = {
+/** P1：WASD + J/K + Enter/Space */
+const P1_KEYMAP: Record<string, number> = {
   KeyJ: BUTTON.B,
   KeyK: BUTTON.A,
   KeyW: BUTTON.Up,
@@ -19,6 +19,18 @@ export const KEYMAP: Record<string, number> = {
   KeyD: BUTTON.Right,
   Enter: BUTTON.Start,
   Space: BUTTON.Select,
+};
+
+/** P2：方向键 + 小键盘 */
+const P2_KEYMAP: Record<string, number> = {
+  Numpad2: BUTTON.B,
+  Numpad1: BUTTON.A,
+  ArrowUp: BUTTON.Up,
+  ArrowDown: BUTTON.Down,
+  ArrowLeft: BUTTON.Left,
+  ArrowRight: BUTTON.Right,
+  NumpadEnter: BUTTON.Start,
+  Numpad0: BUTTON.Select,
 };
 
 type InputOptions =
@@ -57,7 +69,9 @@ export class InputState {
   }
 
   private apply(code: string, down: boolean) {
-    const mask = KEYMAP[code];
+    const map =
+      this.mode === "online" && this.localPlayer === 2 ? P2_KEYMAP : P1_KEYMAP;
+    const mask = map[code];
     if (mask === undefined) {
       return;
     }

@@ -1,5 +1,6 @@
 import type { SignalMessage } from "./signaling";
 import { SignalingClient } from "./signaling";
+import { getIceServers } from "../config/webrtc";
 
 export type InputPacket = {
   kind: "input";
@@ -125,10 +126,10 @@ export class WebRtcPeer {
   private openNotified = false;
   private readonly events: PeerEvents;
 
-  constructor(events: PeerEvents) {
+  constructor(events: PeerEvents, iceServers: RTCIceServer[] = getIceServers()) {
     this.events = events;
     this.pc = new RTCPeerConnection({
-      iceServers: [],
+      iceServers,
     });
     this.pc.onicecandidate = (event) => {
       if (event.candidate) {

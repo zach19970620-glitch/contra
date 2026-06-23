@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { Session } from "../App";
 import { NesAudioEngine } from "../audio/nes-audio-engine";
+import { NesCanvasRenderer } from "../emulator/canvas-renderer";
 import { InputState } from "../emulator/input";
 import { WasmEmulator } from "../emulator/wasm-emulator";
 import { LockstepSync } from "../net/lockstep";
@@ -13,9 +14,7 @@ import {
 import { loadRom } from "../storage/rom-db";
 
 const FRAME_MS = 1000 / 60.0988;
-/** 单机 rAF 每帧最多追几帧，避免音频环形缓冲被瞬间灌满 */
-const MAX_SOLO_CATCHUP_FRAMES = 1;
-const MAX_ACCUMULATOR_MS = FRAME_MS * 4;
+const HUD_UPDATE_MS = 400;
 
 type Props = {
   session: Session;
@@ -32,8 +31,6 @@ export default function Game({ session, onLeave }: Props) {
   useEffect(() => {
     let disposed = false;
     let raf = 0;
-    let lastTime = 0;
-    let accumulator = 0;
 
     const input = new InputState(
       isSolo ? { mode: "solo" } : { mode: "online", localPlayer: session.playerId },
@@ -44,6 +41,7 @@ export default function Game({ session, onLeave }: Props) {
     let net: WebRtcSession | null = null;
     let syncStarted = false;
     let lockstepReady = false;
+    let lockstepTimer: ReturnType<typeof setInterval> | null = null;
     let localSyncReady = false;
     let remoteSyncReady = false;
     let pendingRemoteSyncReady = false;
@@ -51,13 +49,14 @@ export default function Game({ session, onLeave }: Props) {
     let remoteHello = false;
     let pendingSyncStart = false;
     const pendingInputPackets: InputPacket[] = [];
-    let imageData: ImageData | null = null;
+    let renderer: NesCanvasRenderer | null = null;
     let canvasCtx: CanvasRenderingContext2D | null = null;
+    let imageData: ImageData | null = null;
+    let pixelBuffer: Uint8ClampedArray | null = null;
     let soloFrame = 0;
     let lastHudUpdate = 0;
     let lastStatusUpdate = 0;
     let audioScratch: Float32Array | null = null;
-    let lockstepTimer: ReturnType<typeof setInterval> | null = null;
     let bootGeneration = 0;
     let updateSyncStatus: (() => void) | null = null;
 
@@ -66,25 +65,71 @@ export default function Game({ session, onLeave }: Props) {
     window.addEventListener("keydown", onKeyDown);
     window.addEventListener("keyup", onKeyUp);
 
-    function renderFrame(frame: number) {
-      if (!canvasCtx || !imageData) {
+    function pushAudio() {
+      if (!audioScratch) {
         return;
       }
-      emulator.copyFramebuffer(imageData.data);
-      canvasCtx.putImageData(imageData, 0, 0);
-      if (audioScratch) {
-        const count = emulator.copyAudioSamples(audioScratch);
-        if (count > 0) {
-          audio.pushFrame(audioScratch.subarray(0, count));
-        }
+      const count = emulator.copyAudioSamples(audioScratch);
+      if (count > 0) {
+        audio.pushFrame(audioScratch.subarray(0, count));
       }
+    }
+
+    function blitFramebuffer() {
+      if (!pixelBuffer) {
+        return;
+      }
+      emulator.copyFramebuffer(pixelBuffer);
+      if (renderer) {
+        renderer.blit(pixelBuffer);
+        return;
+      }
+      if (canvasCtx && imageData) {
+        imageData.data.set(pixelBuffer);
+        canvasCtx.putImageData(imageData, 0, 0);
+      }
+    }
+
+    function updateHud(frame: number) {
       const now = performance.now();
-      if (hashRef.current) {
-        hashRef.current.textContent = `WRAM hash: ${emulator.wramHash()}`;
+      if (now - lastHudUpdate < HUD_UPDATE_MS) {
+        return;
       }
-      if (isSolo && frame > 0 && now - lastHudUpdate >= 500) {
-        lastHudUpdate = now;
+      lastHudUpdate = now;
+      if (hashRef.current) {
+        const hash = emulator.wramHash();
+        const latency = audio.totalLatencyMs().toFixed(0);
+        hashRef.current.textContent = `WRAM ${hash} · 音频 ~${latency}ms`;
+      }
+      if (isSolo && frame > 0) {
         setStatus(`运行中 · 帧 ${frame}`);
+      }
+    }
+
+    function stepSoloFrame() {
+      emulator.setInputs(input.getButtons(1), input.getButtons(2));
+      emulator.stepFrame();
+      pushAudio();
+      soloFrame += 1;
+    }
+
+    function renderFrame(frame: number) {
+      blitFramebuffer();
+      if (!audio.isPullMode()) {
+        pushAudio();
+      }
+      updateHud(frame);
+    }
+
+    function runLockstepTick() {
+      if (!lockstepReady || !lockstep) {
+        return;
+      }
+      lockstep.tick(input.getLocalButtons(), (packet) => net?.send(packet));
+      const now = performance.now();
+      if (now - lastStatusUpdate >= HUD_UPDATE_MS) {
+        lastStatusUpdate = now;
+        updateSyncStatus?.();
       }
     }
 
@@ -95,28 +140,8 @@ export default function Game({ session, onLeave }: Props) {
       }
     }
 
-    function runLockstepTick() {
-      if (!lockstepReady || !lockstep) {
-        return;
-      }
-      try {
-        lockstep.tick(input.getLocalButtons(), (packet) => net?.send(packet));
-        const now = performance.now();
-        if (now - lastStatusUpdate >= 250) {
-          lastStatusUpdate = now;
-          updateSyncStatus?.();
-        }
-      } catch (error) {
-        const message = error instanceof Error ? error.message : "游戏循环错误";
-        setStatus(`运行错误 · ${message}`);
-        console.error(error);
-      }
-    }
-
     function startLockstepTimer() {
-      if (lockstepTimer !== null) {
-        return;
-      }
+      stopLockstepTimer();
       lockstepTimer = setInterval(runLockstepTick, FRAME_MS);
     }
 
@@ -135,27 +160,42 @@ export default function Game({ session, onLeave }: Props) {
         return;
       }
       emulator.loadRom(new Uint8Array(rom.data));
-      await audio.init();
+      await audio.init(isSolo ? "pull" : "push");
       if (disposed || generation !== bootGeneration) {
         return;
       }
 
       const canvas = canvasRef.current;
-      canvasCtx =
-        canvas?.getContext("2d", {
-          alpha: false,
-        }) ?? null;
-      if (!canvas || !canvasCtx) {
+      if (!canvas) {
         setStatus("Canvas 不可用");
         return;
       }
 
-      canvas.width = emulator.width();
-      canvas.height = emulator.height();
-      imageData = canvasCtx.createImageData(canvas.width, canvas.height);
+      const width = emulator.width();
+      const height = emulator.height();
+      pixelBuffer = new Uint8ClampedArray(width * height * 4);
       audioScratch = new Float32Array(4096);
 
+      try {
+        renderer = new NesCanvasRenderer(canvas, width, height);
+      } catch {
+        canvasCtx =
+          canvas.getContext("2d", {
+            alpha: false,
+          }) ?? null;
+        if (!canvasCtx) {
+          setStatus("Canvas 不可用");
+          return;
+        }
+        canvas.width = width;
+        canvas.height = height;
+        imageData = canvasCtx.createImageData(width, height);
+      }
+
       if (isSolo) {
+        audio.setPullHandler(stepSoloFrame);
+        audio.prime();
+        blitFramebuffer();
         setStatus("单机模式 · 本地双玩家");
       } else {
         updateSyncStatus = () => {
@@ -194,7 +234,7 @@ export default function Game({ session, onLeave }: Props) {
             return;
           }
           lockstepReady = true;
-          lockstep!.tick(input.getLocalButtons(), (packet) => net?.send(packet));
+          runLockstepTick();
           startLockstepTimer();
           updateSyncStatus?.();
         };
@@ -230,8 +270,8 @@ export default function Game({ session, onLeave }: Props) {
             return;
           }
           syncStarted = true;
-          stopLockstepTimer();
           lockstepReady = false;
+          stopLockstepTimer();
           localSyncReady = false;
           remoteSyncReady = false;
           emulator.reset();
@@ -319,35 +359,31 @@ export default function Game({ session, onLeave }: Props) {
         });
       }
 
-      const loop = (time: number) => {
+      const loop = () => {
         if (disposed) {
           return;
         }
-        if (!lastTime) {
-          lastTime = time;
-        }
-        accumulator += time - lastTime;
-        lastTime = time;
-        if (accumulator > MAX_ACCUMULATOR_MS) {
-          accumulator = MAX_ACCUMULATOR_MS;
+
+        try {
+          if (isSolo) {
+            if (audio.needsPull()) {
+              audio.drainPull();
+            }
+            blitFramebuffer();
+            updateHud(soloFrame);
+          } else {
+            const now = performance.now();
+            if (now - lastStatusUpdate >= HUD_UPDATE_MS) {
+              lastStatusUpdate = now;
+              updateSyncStatus?.();
+            }
+          }
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "游戏循环错误";
+          setStatus(`运行错误 · ${message}`);
+          console.error(error);
         }
 
-        let soloSteps = 0;
-        while (accumulator >= FRAME_MS && soloSteps < MAX_SOLO_CATCHUP_FRAMES) {
-          if (isSolo) {
-            emulator.setInputs(input.getButtons(1), input.getButtons(2));
-            emulator.stepFrame();
-            renderFrame(soloFrame);
-            soloFrame += 1;
-            soloSteps += 1;
-          } else {
-            break;
-          }
-          accumulator -= FRAME_MS;
-        }
-        if (!isSolo && accumulator >= FRAME_MS) {
-          accumulator %= FRAME_MS;
-        }
         raf = requestAnimationFrame(loop);
       };
       if (disposed || generation !== bootGeneration) {

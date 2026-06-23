@@ -1,0 +1,6 @@
+# Cloudflare Pages 构建配置（Git 连接 Pages 时可在控制台填同样参数）
+# 文档：scripts/deploy/CLOUDFLARE-PAGES.md
+
+name = "contra-nes"
+compatibility_date = "2024-12-01"
+pages_build_output_dir = "apps/web/dist"
