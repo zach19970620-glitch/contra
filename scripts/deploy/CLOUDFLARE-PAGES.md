@@ -28,14 +28,48 @@
 
 ### 2. 构建设置
 
+你看到的若是 **Workers Builds**（有 Deploy command、没有 Build output directory），按下面填：
+
 | 项 | 值 |
 |----|-----|
 | Production branch | `main` |
-| Framework preset | None |
 | Root directory | `/`（仓库根） |
+| **Build command**（若有） | `npm ci && npm run build -w apps/web` |
+| **Deploy command**（必填） | 见下方 |
+
+**Deploy command（整行）：**
+
+```bash
+npm ci && npm run build -w apps/web && cd apps/web && npx wrangler pages deploy dist --project-name=contra-nes --commit-dirty=true
+```
+
+或 `bash scripts/deploy/cloudflare-deploy.sh`
+
+| 命令 | 说明 |
+|------|------|
+| `wrangler pages deploy dist …` | ✅ Pages 项目 |
+| `wrangler deploy` | ❌ Worker 命令，Pages 项目会报错 |
+
+Token 须为 **Edit Cloudflare Pages**（见 [CLOUDFLARE-API-TOKEN.md](./CLOUDFLARE-API-TOKEN.md)）。
+
+若是**经典 Pages**（有 Build output directory、Deploy 可留空）：
+
+| 项 | 值 |
+|----|-----|
 | Build command | `npm ci && npm run build -w apps/web` |
 | Build output directory | `apps/web/dist` |
-| Node.js version | `20`（或依赖根目录 `.node-version`） |
+| Deploy command | 留空 |
+
+### 2.1 报错 Authentication error 10000
+
+Token 权限不足或类型不对。完整步骤见 **[CLOUDFLARE-API-TOKEN.md](./CLOUDFLARE-API-TOKEN.md)**。
+
+快速检查：
+
+1. 重新创建 Token，模板选 **Edit Cloudflare Pages**
+2. 环境变量：`CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID=347bc1ac321e89f0efd5ed1611c18060`
+3. Deploy 使用 `cd apps/web && npx wrangler pages deploy dist --project-name=contra-nes --commit-dirty=true`
+4. Retry deployment
 
 ### 3. 环境变量（Settings → Environment variables → Production）
 

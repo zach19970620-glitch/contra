@@ -9,9 +9,11 @@
     "dev": "concurrently -n web,signal -c cyan,magenta \"npm run dev -w apps/web\" \"npm run dev -w apps/signaling\"",
     "build": "npm run build:wasm && npm run build -w apps/web && npm run build -w apps/signaling",
     "build:wasm": "cd crates/contra-wasm && wasm-pack build --target web --out-dir ../../apps/web/src/wasm/pkg --release",
-    "setup:certs": "bash scripts/setup-certs.sh"
+    "setup:certs": "bash scripts/setup-certs.sh",
+    "deploy:pages": "npm run build -w apps/web && npm run pages:deploy -w apps/web"
   },
   "devDependencies": {
-    "concurrently": "^9.1.2"
+    "concurrently": "^9.1.2",
+    "wrangler": "^4.86.0"
   }
 }

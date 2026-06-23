@@ -31,7 +31,7 @@
 
 ## 第 1 部分：代码推上 GitHub
 
-- [ ] **1.1** 本地项目已包含最新部署配置（`wrangler.toml`、`scripts/deploy/` 等）
+- [ ] **1.1** 本地项目已包含 `scripts/deploy/cloudflare-deploy.sh` 等部署配置
 - [ ] **1.2** 提交并 push 到 GitHub `main` 分支：
 
 ```bash
@@ -42,7 +42,7 @@ git commit -m "deploy: Cloudflare Pages + signal/turn subdomains"
 git push origin main
 ```
 
-- [ ] **1.3** 打开 GitHub 仓库，确认 `main` 上能看到 `scripts/deploy/` 和 `wrangler.toml`
+- [ ] **1.3** 打开 GitHub 仓库，确认 `main` 上能看到 `scripts/deploy/cloudflare-deploy.sh`
 
 ---
 
@@ -325,15 +325,24 @@ curl -I https://signal.zachuse.top/ws
 
 - [ ] **11.1** 打开 [Cloudflare Dashboard](https://dash.cloudflare.com) → **Workers & Pages** → **Create** → **Pages** → **Connect to Git**
 - [ ] **11.2** 授权 GitHub，选择仓库 **contra**
-- [ ] **11.3** 构建设置 **逐项填写**：
+- [ ] **11.3** 构建设置（**Workers Builds 界面**：无 Output directory、Deploy 必填）
 
 | 字段 | 填写 |
 |------|------|
 | Production branch | `main` |
-| Framework preset | **None** |
-| Root directory | 留空（表示仓库根 `/`） |
-| Build command | `npm ci && npm run build -w apps/web` |
-| Build output directory | `apps/web/dist` |
+| Root directory | 留空（仓库根 `/`） |
+| Build command（若有） | `npm ci && npm run build -w apps/web` |
+| **Deploy command（必填）** | `bash scripts/deploy/cloudflare-deploy.sh` |
+
+或一行：
+
+```bash
+npm ci && npm run build -w apps/web && cd apps/web && npx wrangler pages deploy dist --project-name=contra-nes --commit-dirty=true
+```
+
+Token 模板：**Edit Cloudflare Pages**（见 [CLOUDFLARE-API-TOKEN.md](./CLOUDFLARE-API-TOKEN.md)）。
+
+> 若是经典 Pages（有 Build output directory）：Output 填 `apps/web/dist`，Deploy 留空即可。
 
 - [ ] **11.4** **Environment variables** → **Production** → 添加两个变量：
 
@@ -349,9 +358,9 @@ curl -I https://signal.zachuse.top/ws
 |------|-------|
 | `VITE_ICE_SERVERS` | `[{"urls":"stun:coturn.zachuse.top:3478"},{"urls":"turn:coturn.zachuse.top:3478","username":"contra","credential":"你的TURN密码"}]` |
 
-- [ ] **11.5** **Settings** → **Environment** → **Production** → **Node.js version** 设为 **20**（或依赖仓库 `.node-version`）
+- [ ] **11.5** **Settings** → **Environment** → **Production** → **Node.js version** 设为 **20**
 
-- [ ] **11.6** 点击 **Save and Deploy**，等待首次构建成功（Build log 无红色错误）
+- [ ] **11.6** 点击 **Save and Deploy**，等待构建成功
 
 ---
 
@@ -394,6 +403,9 @@ curl -I https://signal.zachuse.top/ws
 | 现象 | 处理 |
 |------|------|
 | Pages 构建失败 | 看 Build log；确认 Node 20、`npm ci` 能跑通 |
+| wrangler Authentication 10000 | Token 改用 **Edit Cloudflare Pages** 模板 |
+| wrangler workspace 错误 | Deploy 加 `cd apps/web &&` |
+| Missing entry-point / assets | 用 `pages deploy dist`，勿用 `wrangler deploy` |
 | 打不开 nes.zachuse.top | 检查 Pages 自定义域 SSL；DNS 是否橙云 |
 | 信令连不上 | `dig signal.zachuse.top` 是否 43.136.63.40；nginx/contra-signaling 是否 active |
 | Trickle ICE 无 relay | turn 是否灰云；UDP 3478、60000–60010 防火墙；coturn 密码是否一致 |
