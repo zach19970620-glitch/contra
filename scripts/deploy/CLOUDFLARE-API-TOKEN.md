@@ -47,11 +47,19 @@ bash scripts/deploy/cloudflare-deploy.sh
 
 **禁止**用 **Edit Cloudflare Workers** Token 跑 `pages deploy`（会 Authentication 10000）。
 
-## 4. 先创建 Pages 项目
+## 4. 先创建 Pages 项目（必做）
 
-Dashboard → **Workers & Pages** → **Create** → **Pages** → 项目名 **`contra-nes`**
+`wrangler pages deploy --project-name=contra-nes` 要求该 **Pages 项目已存在**。
 
-（可与 Git 集成，Deploy 仍用上面 command 上传 `dist`）
+**方式 A（推荐，无需改 Dashboard）**：Deploy command 用脚本，首次会自动创建：
+
+```bash
+bash scripts/deploy/cloudflare-deploy.sh
+```
+
+**方式 B（手动）**：Dashboard → **Workers & Pages** → **Create** → **Pages** → 选 **Direct Upload**（或 Connect Git）→ 项目名填 **`contra-nes`**（必须完全一致）→ Create。
+
+创建后可在 **Custom domains** 绑定 `nes.zachuse.top`。
 
 ## 5. 绑定域名
 
@@ -65,4 +73,4 @@ Pages 项目 → **Custom domains** → `nes.zachuse.top`
 | workspace root | Deploy 加 `cd apps/web &&` |
 | Missing entry-point / assets | 用 `pages deploy dist`，勿用 `wrangler deploy` |
 | Wrangler requires Node ≥22 | `.node-version` / `.nvmrc` 设为 `22`，或 `NODE_VERSION=22` |
-| project not found | Dashboard 创建 Pages 项目 `contra-nes` |
+| project not found (8000007) | Dashboard 创建 Pages 项目 **`contra-nes`**，或 Deploy 用 `bash scripts/deploy/cloudflare-deploy.sh`（会自动 create） |

@@ -323,7 +323,8 @@ curl -I https://signal.zachuse.top/ws
 
 ## 第 11 部分：Cloudflare Pages 创建项目
 
-- [ ] **11.1** 打开 [Cloudflare Dashboard](https://dash.cloudflare.com) → **Workers & Pages** → **Create** → **Pages** → **Connect to Git**
+- [ ] **11.1** 打开 [Cloudflare Dashboard](https://dash.cloudflare.com) → **Workers & Pages** → **Create** → **Pages** → **Connect to Git**（或 **Direct Upload** 先建空项目）
+- [ ] **11.1b** 项目名必须是 **`contra-nes`**（与 Deploy 里 `--project-name` 一致）。若 Git 集成自动生成了别的名字（如 `contra`），要么改名，要么设环境变量 `CLOUDFLARE_PAGES_PROJECT=实际项目名`。未建项目时 `cloudflare-deploy.sh` 会自动 `pages project create`。
 - [ ] **11.2** 授权 GitHub，选择仓库 **contra**
 - [ ] **11.3** 构建设置（**Workers Builds 界面**：无 Output directory、Deploy 必填）
 
@@ -333,12 +334,6 @@ curl -I https://signal.zachuse.top/ws
 | Root directory | 留空（仓库根 `/`） |
 | Build command（若有） | `npm ci && npm run build -w apps/web` |
 | **Deploy command（必填）** | `bash scripts/deploy/cloudflare-deploy.sh` |
-
-或一行：
-
-```bash
-npm ci && npm run build -w apps/web && cd apps/web && npx wrangler pages deploy dist --project-name=contra-nes --commit-dirty=true
-```
 
 Token 模板：**Edit Cloudflare Pages**（见 [CLOUDFLARE-API-TOKEN.md](./CLOUDFLARE-API-TOKEN.md)）。
 
@@ -406,6 +401,7 @@ Token 模板：**Edit Cloudflare Pages**（见 [CLOUDFLARE-API-TOKEN.md](./CLOUD
 | wrangler Authentication 10000 | Token 改用 **Edit Cloudflare Pages** 模板 |
 | wrangler workspace 错误 | Deploy 加 `cd apps/web &&` |
 | Missing entry-point / assets | 用 `pages deploy dist`，勿用 `wrangler deploy` |
+| project not found (8000007) | 创建 Pages 项目 **`contra-nes`**，或 Deploy 改用 `bash scripts/deploy/cloudflare-deploy.sh` |
 | Wrangler 要求 Node ≥22 | 根目录 `.node-version` / `.nvmrc` 设为 `22`，或 Build 环境变量 `NODE_VERSION=22` |
 | 打不开 nes.zachuse.top | 检查 Pages 自定义域 SSL；DNS 是否橙云 |
 | 信令连不上 | `dig signal.zachuse.top` 是否 43.136.63.40；nginx/contra-signaling 是否 active |
