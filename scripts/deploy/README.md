@@ -8,7 +8,7 @@
 |------|------|
 | 前端 `https://nes.zachuse.top` | **Cloudflare Pages** → [CLOUDFLARE-PAGES.md](./CLOUDFLARE-PAGES.md) |
 | 信令 `wss://signal.zachuse.top/ws` | OpenCloudOS · Nginx → Node :8080 |
-| STUN/TURN `turn.zachuse.top:3478` | OpenCloudOS · Coturn |
+| STUN/TURN `coturn.zachuse.top:3478` | OpenCloudOS · Coturn |
 
 **逐步清单：** [DEPLOY-STEPS.md](./DEPLOY-STEPS.md)
 
@@ -20,7 +20,7 @@
 |------|------|-----|------|
 | `nes` | Pages 自定义域 | （Pages 自动） | 橙云 |
 | `signal` | A | `43.136.63.40` | **仅 DNS** |
-| `turn` | A | `43.136.63.40` | **仅 DNS** |
+| `coturn` | A | `43.136.63.40` | **仅 DNS** |
 
 ---
 
@@ -67,7 +67,7 @@ npm run build -w apps/signaling
 
 ```bash
 sudo certbot certonly --nginx -d signal.zachuse.top
-sudo certbot certonly --nginx -d turn.zachuse.top
+sudo certbot certonly --nginx -d coturn.zachuse.top
 ```
 
 ### Coturn（注意路径）
@@ -113,8 +113,8 @@ sudo nginx -t && sudo systemctl reload nginx
 | 变量 | 值 |
 |------|-----|
 | Pages `VITE_SIGNALING_URL` | `wss://signal.zachuse.top/ws` |
-| STUN | `stun:turn.zachuse.top:3478` |
-| TURN | `turn:turn.zachuse.top:3478`，用户 `contra` |
+| STUN | `stun:coturn.zachuse.top:3478` |
+| TURN | `turn:coturn.zachuse.top:3478`，用户 `contra` |
 
 ---
 

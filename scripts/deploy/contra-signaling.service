@@ -4,13 +4,13 @@ After=network.target
 
 [Service]
 Type=simple
-# OpenCloudOS / RHEL 无 www-data；轻量 VPS 用 root 即可
 User=root
 Group=root
 WorkingDirectory=/opt/contra/apps/signaling
 Environment=PORT=8080
 Environment=NODE_ENV=production
-ExecStart=/usr/bin/node dist/index.js
+# 203/EXEC 常见原因：/usr/bin/node 不存在；用脚本自动查找 node
+ExecStart=/opt/contra/scripts/deploy/start-signaling.sh
 Restart=on-failure
 RestartSec=5
 

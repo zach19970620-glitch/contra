@@ -96,7 +96,7 @@ npm run build
 |------|------|
 | 前端（Cloudflare Pages） | `https://nes.zachuse.top` |
 | 信令（腾讯云） | `wss://signal.zachuse.top/ws` → `43.136.63.40` |
-| STUN/TURN | `turn.zachuse.top:3478` → `43.136.63.40` |
+| STUN/TURN | `coturn.zachuse.top:3478` → `43.136.63.40` |
 
 ### 前端 → Cloudflare Pages
 
@@ -114,10 +114,10 @@ Production 环境变量：
 
 ```bash
 VITE_SIGNALING_URL=wss://signal.zachuse.top/ws
-VITE_ICE_SERVERS=[{"urls":"stun:turn.zachuse.top:3478"},{"urls":"turn:turn.zachuse.top:3478","username":"contra","credential":"与Coturn相同密码"}]
+VITE_ICE_SERVERS=[{"urls":"stun:coturn.zachuse.top:3478"},{"urls":"turn:coturn.zachuse.top:3478","username":"contra","credential":"与Coturn相同密码"}]
 ```
 
-自定义域绑定 `nes.zachuse.top`。`signal` / `turn` 子域 **A 记录到 43.136.63.40 且关闭 CF 代理（灰云）**。
+自定义域绑定 `nes.zachuse.top`。`signal` / `coturn` 子域 **A 记录到 43.136.63.40 且关闭 CF 代理（灰云）**。
 
 ### 后端 → 腾讯云轻量（OpenCloudOS 9）
 
@@ -126,7 +126,7 @@ VITE_ICE_SERVERS=[{"urls":"stun:turn.zachuse.top:3478"},{"urls":"turn:turn.zachu
 ```
 https://nes.zachuse.top              → Cloudflare Pages
 wss://signal.zachuse.top/ws      → Nginx → Node :8080
-stun/turn:turn.zachuse.top:3478  → Coturn
+stun/turn:coturn.zachuse.top:3478  → Coturn
 ```
 
 ### 验证

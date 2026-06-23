@@ -17,6 +17,14 @@
 | GitHub 仓库 | `https://github.com/zach19970620-glitch/contra` |
 | SSH 登录 | `ssh root@43.136.63.40`（用户名按你实际改） |
 
+**子域名分工**
+
+| 子域 | 用途 |
+|------|------|
+| `nes.zachuse.top` | 游戏前端（Cloudflare Pages） |
+| `signal.zachuse.top` | WebRTC 信令 WSS |
+| `coturn.zachuse.top` | STUN / TURN（Coturn） |
+
 先想一个 **TURN 强密码**（例如 20 位随机字符），后面 Coturn 和 Cloudflare 要用**同一个**。
 
 ---
@@ -60,17 +68,17 @@ git push origin main
 |------|------|---------|-------|
 | A | `signal` | `43.136.63.40` | **DNS only（灰云）** |
 
-- [ ] **3.3** 添加 **TURN** 记录：
+- [ ] **3.3** 添加 **Coturn（STUN/TURN）** 记录：
 
 | Type | Name | Content | Proxy |
 |------|------|---------|-------|
-| A | `turn` | `43.136.63.40` | **DNS only（灰云）** |
+| A | `coturn` | `43.136.63.40` | **DNS only（灰云）** |
 
 - [ ] **3.4** 本机验证解析（等 1～5 分钟再试）：
 
 ```bash
 dig +short signal.zachuse.top
-dig +short turn.zachuse.top
+dig +short coturn.zachuse.top
 # 都应返回 43.136.63.40
 ```
 
@@ -203,14 +211,14 @@ sudo certbot certonly --nginx -d signal.zachuse.top
 - [ ] **7.2** 再申请 turn 域证书：
 
 ```bash
-sudo certbot certonly --nginx -d turn.zachuse.top
+sudo certbot certonly --nginx -d coturn.zachuse.top
 ```
 
 - [ ] **7.3** 确认证书文件存在：
 
 ```bash
 sudo ls /etc/letsencrypt/live/signal.zachuse.top/
-sudo ls /etc/letsencrypt/live/turn.zachuse.top/
+sudo ls /etc/letsencrypt/live/coturn.zachuse.top/
 ```
 
 ---
@@ -239,21 +247,33 @@ sudo systemctl status coturn
 
 ## 第 9 部分：启动信令服务（Node）
 
-- [ ] **9.1** 安装 systemd 服务：
+- [ ] **9.1** 确认 Node 与编译产物存在：
 
 ```bash
+command -v node && node -v    # 应 >= v20
+ls -la /opt/contra/apps/signaling/dist/index.js
+# 若没有 dist：cd /opt/contra && npm run build -w apps/signaling
+```
+
+- [ ] **9.2** 安装 systemd 服务（启动脚本会自动查找 `node` 路径，避免 203/EXEC）：
+
+```bash
+sudo chmod +x /opt/contra/scripts/deploy/start-signaling.sh
 sudo cp /opt/contra/scripts/deploy/contra-signaling.service /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable contra-signaling
 sudo systemctl start contra-signaling
 ```
 
-- [ ] **9.2** 检查状态：
+- [ ] **9.3** 检查状态：
 
 ```bash
 sudo systemctl status contra-signaling
 curl -I http://127.0.0.1:8080   # 可能返回 404/426，说明进程在监听即可
 ```
+
+若仍失败 `status=203/EXEC`：执行 `which node`；若为空，按第 5.3 步重装 Node.js。  
+若提示 `missing dist/index.js`：在 `/opt/contra` 执行 `npm run build -w apps/signaling`。
 
 ---
 
@@ -305,7 +325,7 @@ curl -I https://signal.zachuse.top/ws
 
 | Name | Value |
 |------|-------|
-| `VITE_ICE_SERVERS` | `[{"urls":"stun:turn.zachuse.top:3478"},{"urls":"turn:turn.zachuse.top:3478","username":"contra","credential":"你的TURN密码"}]` |
+| `VITE_ICE_SERVERS` | `[{"urls":"stun:coturn.zachuse.top:3478"},{"urls":"turn:coturn.zachuse.top:3478","username":"contra","credential":"你的TURN密码"}]` |
 
 - [ ] **11.5** **Settings** → **Environment** → **Production** → **Node.js version** 设为 **20**（或依赖仓库 `.node-version`）
 
@@ -334,8 +354,8 @@ curl -I https://signal.zachuse.top/ws
 ### 13.2 TURN
 
 - [ ] 打开 [Trickle ICE 测试页](https://webrtc.github.io/samples/src/content/peerconnection/trickle-ice/)
-- [ ] 添加 STUN：`stun:turn.zachuse.top:3478`
-- [ ] 添加 TURN：URL `turn:turn.zachuse.top:3478`，用户名 `contra`，密码同 Coturn
+- [ ] 添加 STUN：`stun:coturn.zachuse.top:3478`
+- [ ] 添加 TURN：URL `turn:coturn.zachuse.top:3478`，用户名 `contra`，密码同 Coturn
 - [ ] 点 **Gather candidates**，结果里应出现 **relay** 类型
 
 ### 13.3 联机
@@ -358,6 +378,7 @@ curl -I https://signal.zachuse.top/ws
 | 能连上但不同步 | 见 `docs/lockstep-sync-lessons.md`；确认 P1/P2 都 ✓ |
 | certbot 失败 | DNS 未生效；80/443 未放行；OpenCloudOS 需先 `dnf install epel-release certbot python3-certbot-nginx` |
 | coturn 启动失败 | 配置应在 `/etc/coturn/turnserver.conf`；检查 `journalctl -u coturn` |
+| contra-signaling 203/EXEC | `which node` 为空 → 重装 Node 20；或 `dist/index.js` 不存在 → `npm run build -w apps/signaling` |
 | nginx 502 / 信令不通 | 执行 `setsebool -P httpd_can_network_connect 1`；确认 `contra-signaling` 为 active |
 | `npm install` 报错 | 确认 Node >= 20（NodeSource RPM） |
 
@@ -388,7 +409,7 @@ sudo systemctl restart contra-signaling
 ```
 https://nes.zachuse.top              → Cloudflare Pages（游戏页面）
 wss://signal.zachuse.top/ws      → 43.136.63.40 Nginx → Node :8080
-stun/turn:turn.zachuse.top:3478  → 43.136.63.40 Coturn
+stun/turn:coturn.zachuse.top:3478  → 43.136.63.40 Coturn
 ```
 
 全部完成后，把本文件里的 `- [ ]` 改成 `- [x]` 留档即可。

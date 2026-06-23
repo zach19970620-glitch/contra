@@ -11,7 +11,7 @@
 |--------|------|------|------|
 | `nes` | Cloudflare Pages（自定义域） | 橙云 ✓ | 游戏前端 HTTPS |
 | `signal` | A → `43.136.63.40` | **灰云 DNS only** | WSS 信令 |
-| `turn` | A → `43.136.63.40` | **灰云 DNS only** | STUN/TURN（UDP 不能走橙云） |
+| `coturn` | A → `43.136.63.40` | **灰云 DNS only** | STUN/TURN（UDP 不能走橙云） |
 
 域名 DNS 须托管在 **Cloudflare**，Pages 自定义域才能一键绑定 `nes.zachuse.top`。
 
@@ -42,7 +42,7 @@
 | 名称 | 值 |
 |------|-----|
 | `VITE_SIGNALING_URL` | `wss://signal.zachuse.top/ws` |
-| `VITE_ICE_SERVERS` | `[{"urls":"stun:turn.zachuse.top:3478"},{"urls":"turn:turn.zachuse.top:3478","username":"contra","credential":"你的TURN密码"}]` |
+| `VITE_ICE_SERVERS` | `[{"urls":"stun:coturn.zachuse.top:3478"},{"urls":"turn:coturn.zachuse.top:3478","username":"contra","credential":"你的TURN密码"}]` |
 
 `VITE_ICE_SERVERS` 须为**单行 JSON**，密码与服务器 Coturn `user=contra:xxx` 一致。
 
@@ -81,7 +81,7 @@ sudo dnf install -y nodejs
 
 # 证书
 sudo certbot certonly --nginx -d signal.zachuse.top
-sudo certbot certonly --nginx -d turn.zachuse.top
+sudo certbot certonly --nginx -d coturn.zachuse.top
 
 # Coturn（OpenCloudOS 路径）
 sudo cp scripts/deploy/coturn.zachuse.top.conf /etc/coturn/turnserver.conf
@@ -106,7 +106,7 @@ sudo setsebool -P httpd_can_network_connect 1
 
 1. **https://nes.zachuse.top** — Pages 前端，能进大厅  
 2. 大厅信令默认应为 `wss://signal.zachuse.top/ws`（构建时已注入）  
-3. [Trickle ICE](https://webrtc.github.io/samples/src/content/peerconnection/trickle-ice/)：`stun:turn.zachuse.top:3478` / TURN 同域，出现 **relay**  
+3. [Trickle ICE](https://webrtc.github.io/samples/src/content/peerconnection/trickle-ice/)：`stun:coturn.zachuse.top:3478` / TURN 同域，出现 **relay**  
 4. 两人跨网同房，「已模拟 N 帧」递增，WRAM hash 一致  
 
 ---
@@ -116,5 +116,5 @@ sudo setsebool -P httpd_can_network_connect 1
 ```
 https://nes.zachuse.top          → Cloudflare Pages（WASM/JS）
 wss://signal.zachuse.top/ws → 43.136.63.40 Nginx → Node :8080
-stun/turn:turn.zachuse.top:3478 → 43.136.63.40 Coturn
+stun/turn:coturn.zachuse.top:3478 → 43.136.63.40 Coturn
 ```
