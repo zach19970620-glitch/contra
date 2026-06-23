@@ -159,7 +159,16 @@ export default function Game({ session, onLeave }: Props) {
       if (disposed || generation !== bootGeneration) {
         return;
       }
-      emulator.loadRom(new Uint8Array(rom.data));
+      try {
+        emulator.loadRom(new Uint8Array(rom.data));
+      } catch (error) {
+        setStatus(
+          error instanceof Error
+            ? `ROM 无效 · ${error.message}`
+            : "ROM 无效",
+        );
+        return;
+      }
       await audio.init(isSolo ? "pull" : "push");
       if (disposed || generation !== bootGeneration) {
         return;

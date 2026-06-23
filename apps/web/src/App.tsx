@@ -1,6 +1,7 @@
 import { useState } from "react";
 import Game from "./pages/Game";
 import Lobby from "./pages/Lobby";
+import { ROM_SOURCE } from "./config/rom";
 import { getDefaultSignalingUrl } from "./config/webrtc";
 
 export type Session =
@@ -25,7 +26,8 @@ export default function App() {
     <div className="app">
       <h1>Contra Online MVP</h1>
       <p className="status">
-        联机 · 公网入口 nes.zachuse.top · Lockstep · 内置 ROM
+        联机 · Lockstep ·{" "}
+        {ROM_SOURCE === "bundled" ? "内置 ROM" : "请上传自有 ROM（.nes）"}
       </p>
       <Lobby
         defaultSignalingUrl={defaultSignalingUrl}

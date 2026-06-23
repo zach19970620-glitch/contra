@@ -323,21 +323,28 @@ curl -I https://signal.zachuse.top/ws
 
 ## 第 11 部分：Cloudflare Pages 创建项目
 
-- [ ] **11.1** 打开 [Cloudflare Dashboard](https://dash.cloudflare.com) → **Workers & Pages** → **Create** → **Pages** → **Connect to Git**（或 **Direct Upload** 先建空项目）
-- [ ] **11.1b** 项目名必须是 **`contra-nes`**（与 Deploy 里 `--project-name` 一致）。若 Git 集成自动生成了别的名字（如 `contra`），要么改名，要么设环境变量 `CLOUDFLARE_PAGES_PROJECT=实际项目名`。未建项目时 `cloudflare-deploy.sh` 会自动 `pages project create`。
-- [ ] **11.2** 授权 GitHub，选择仓库 **contra**
-- [ ] **11.3** 构建设置（**Workers Builds 界面**：无 Output directory、Deploy 必填）
+> **若 `*.pages.dev` 是 Hello world 或 Nothing is here yet**：不要用 Workers Builds。按下面 **经典 Pages** 重建。
+
+### 推荐：经典 Pages
+
+- [ ] **11.1** Dashboard → **Create** → **Pages** → **Connect to Git** → 仓库 **contra**
+- [ ] **11.2** 构建设置：
 
 | 字段 | 填写 |
 |------|------|
 | Production branch | `main` |
 | Root directory | 留空（仓库根 `/`） |
-| Build command（若有） | `npm ci && npm run build -w apps/web` |
-| **Deploy command（必填）** | `bash scripts/deploy/cloudflare-deploy.sh` |
+| Build command | `npm ci && npm run build -w apps/web` |
+| **Build output directory** | `apps/web/dist` |
+| Deploy command | **留空** |
+| Node.js | **22** |
 
-Token 模板：**Edit Cloudflare Pages**（见 [CLOUDFLARE-API-TOKEN.md](./CLOUDFLARE-API-TOKEN.md)）。
+- [ ] **11.3** 若有旧的 **Workers Builds** 项目（Hello world）→ 删除或解除 `nes.zachuse.top` 绑定
 
-> 若是经典 Pages（有 Build output directory）：Output 填 `apps/web/dist`，Deploy 留空即可。
+### 备选：Workers Builds
+
+- [ ] **11.W1** Deploy command：`bash scripts/deploy/cloudflare-deploy.sh`
+- [ ] **11.W2** 项目名 **`contra-nes`** 或设 `CLOUDFLARE_PAGES_PROJECT`
 
 - [ ] **11.4** **Environment variables** → **Production** → 添加两个变量：
 
@@ -404,6 +411,7 @@ Token 模板：**Edit Cloudflare Pages**（见 [CLOUDFLARE-API-TOKEN.md](./CLOUD
 | project not found (8000007) | 创建 Pages 项目 **`contra-nes`**，或 Deploy 改用 `bash scripts/deploy/cloudflare-deploy.sh` |
 | Wrangler 要求 Node ≥22 | 根目录 `.node-version` / `.nvmrc` 设为 `22`，或 Build 环境变量 `NODE_VERSION=22` |
 | 打不开 nes.zachuse.top | 检查 Pages 自定义域 SSL；DNS 是否橙云 |
+| 打开网页只有 **Hello world** | 域名绑在 **Worker** 上而非 **Pages**；见下方说明 |
 | 信令连不上 | `dig signal.zachuse.top` 是否 43.136.63.40；nginx/contra-signaling 是否 active |
 | Trickle ICE 无 relay | turn 是否灰云；UDP 3478、60000–60010 防火墙；coturn 密码是否一致 |
 | 能连上但不同步 | 见 `docs/lockstep-sync-lessons.md`；确认 P1/P2 都 ✓ |
@@ -413,6 +421,24 @@ Token 模板：**Edit Cloudflare Pages**（见 [CLOUDFLARE-API-TOKEN.md](./CLOUD
 | contra-signaling 203/EXEC | `which node` 为空 → 重装 Node 20；或 `dist/index.js` 不存在 → `npm run build -w apps/signaling` |
 | nginx 502 / 信令不通 | 执行 `setsebool -P httpd_can_network_connect 1`；确认 `contra-signaling` 为 active |
 | `npm install` 报错 | 确认 Node >= 20（NodeSource RPM） |
+
+### 打开网页只有 Hello world / Nothing is here yet
+
+| 现象 | 原因 | 处理 |
+|------|------|------|
+| **Hello world**（纯文本） | **Workers Builds** 部署了默认 Worker | 改用 **经典 Pages**（见 CLOUDFLARE-PAGES.md），或删除 Workers 项目 |
+| **Nothing is here yet**（HTML 404 页） | Pages 项目存在但 **从未成功上传 dist** | 确认 Deploy 日志 Success；经典 Pages 填 `apps/web/dist`；Workers Builds 用 `cloudflare-deploy.sh`（含 `--branch=main`） |
+| `nes.zachuse.top` 与 `*.pages.dev` 不一致 | 自定义域绑错项目 | 域名只绑 **Pages** 项目，不要绑 Worker |
+
+**推荐一次性修复：**
+
+1. Dashboard → 删除或停用返回 Hello world 的 **Workers Builds** 项目
+2. **Create → Pages → Connect to Git** → 仓库 `contra`
+3. Build command: `npm ci && npm run build -w apps/web` · Output: `apps/web/dist` · Deploy: **留空** · Node: **22**
+4. 等构建 Success → 打开 `https://<项目名>.pages.dev` 应见 **Contra Online MVP**
+5. Custom domains → `nes.zachuse.top`
+
+**自检：** View Source 应有 `<title>Contra Online</title>`，不是 `Hello world` 或 `Deployment Not Found`。
 
 ---
 

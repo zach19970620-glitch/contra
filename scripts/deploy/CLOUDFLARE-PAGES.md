@@ -21,14 +21,36 @@
 
 ## 一、Cloudflare Pages
 
-### 1. 创建项目
+> **重要：** 若打开 `*.pages.dev` 或自定义域只看到 **Hello world**，说明你用的是 **Workers Builds（会部署默认 Worker）**，不是静态 Pages。请改用下方 **「推荐：经典 Pages」**，或删除 Workers Builds 项目后重来。
+
+### 推荐：经典 Pages（Connect Git）
+
+**不要用 Workers Builds。** 按下面创建 **Pages** 项目即可，无需 wrangler、不会出现 Hello world。
 
 1. [Cloudflare Dashboard](https://dash.cloudflare.com) → **Workers & Pages** → **Create** → **Pages** → **Connect to Git**
 2. 选择仓库 `contra`
+3. 构建设置：
 
-### 2. 构建设置
+| 项 | 值 |
+|----|-----|
+| Production branch | `main` |
+| Root directory | `/`（仓库根） |
+| **Build command** | `npm ci && npm run build -w apps/web` |
+| **Build output directory** | `apps/web/dist` |
+| **Deploy command** | **留空** |
+| Node.js | **22**（或依赖根目录 `.node-version`） |
 
-你看到的若是 **Workers Builds**（有 Deploy command、没有 Build output directory），按下面填：
+4. Production 环境变量见下文 §3
+5. 部署成功后访问 `https://<项目名>.pages.dev`，应看到 **「Contra Online MVP」**
+6. **Custom domains** → 绑定 `nes.zachuse.top`
+
+若已有 **Workers Builds** 项目（返回 Hello world）：在 Dashboard 删除或停用，避免与 Pages 抢域名。
+
+---
+
+### 备选：Workers Builds（Deploy command 必填）
+
+仅当你必须用 Workers Builds（无 Build output directory 字段）时用此方案：
 
 | 项 | 值 |
 |----|-----|
@@ -40,27 +62,18 @@
 **Deploy command（整行）：**
 
 ```bash
-npm ci && npm run build -w apps/web && cd apps/web && npx wrangler pages deploy dist --project-name=contra-nes --commit-dirty=true
+bash scripts/deploy/cloudflare-deploy.sh
 ```
-
-或 `bash scripts/deploy/cloudflare-deploy.sh`
 
 | 命令 | 说明 |
 |------|------|
-| `wrangler pages deploy dist …` | ✅ Pages 项目 |
-| `wrangler deploy` | ❌ Worker 命令，Pages 项目会报错 |
+| `bash scripts/deploy/cloudflare-deploy.sh` | ✅ 构建 + 创建 Pages 项目 + 上传 dist |
+| `wrangler deploy` | ❌ Worker 命令，会 Hello world / 报错 |
+| `wrangler pages deploy` 单行（无 `--branch=main`） | ⚠️ 可能只进 preview，pages.dev 仍为空 |
 
 Token 须为 **Edit Cloudflare Pages**（见 [CLOUDFLARE-API-TOKEN.md](./CLOUDFLARE-API-TOKEN.md)）。
 
-**Node.js 版本**：Wrangler 4.x 要求 **Node ≥22**。仓库根目录已有 `.node-version` / `.nvmrc`（内容为 `22`）；若 Dashboard 有 Node 版本选项，也选 **22**。
-
-若是**经典 Pages**（有 Build output directory、Deploy 可留空）：
-
-| 项 | 值 |
-|----|-----|
-| Build command | `npm ci && npm run build -w apps/web` |
-| Build output directory | `apps/web/dist` |
-| Deploy command | 留空 |
+**Node.js 版本**：Wrangler 4.x 要求 **Node ≥22**。仓库根目录已有 `.node-version` / `.nvmrc`（内容为 `22`）。
 
 ### 2.1 报错 Authentication error 10000
 

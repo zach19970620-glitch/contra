@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "pages:deploy": "wrangler pages deploy dist --project-name=contra-nes --commit-dirty=true"
+    "pages:deploy": "wrangler pages deploy dist --project-name=contra-nes --branch=main --commit-dirty=true"
   },
   "dependencies": {
     "react": "^19.1.0",

@@ -100,15 +100,16 @@ npm run build
 
 ### 前端 → Cloudflare Pages
 
-**逐步清单（推荐从这里开始）：** **[scripts/deploy/DEPLOY-STEPS.md](scripts/deploy/DEPLOY-STEPS.md)**
+**逐步清单：** **[scripts/deploy/DEPLOY-STEPS.md](scripts/deploy/DEPLOY-STEPS.md)** · **[CLOUDFLARE-PAGES.md](scripts/deploy/CLOUDFLARE-PAGES.md)**
 
-摘要文档：[CLOUDFLARE-PAGES.md](scripts/deploy/CLOUDFLARE-PAGES.md) · 服务器：[README.md](scripts/deploy/README.md)
+**推荐用经典 Pages（Connect Git）**，不要用 Workers Builds（会部署 Hello world Worker）：
 
 | Pages 构建设置 | 值 |
 |----------------|-----|
 | Build command | `npm ci && npm run build -w apps/web` |
-| Output directory | `apps/web/dist` |
-| Node | `20` |
+| Build output directory | `apps/web/dist` |
+| Deploy command | **留空** |
+| Node | `22` |
 
 Production 环境变量： 
 
