@@ -14,6 +14,7 @@ export class LockstepSync {
   private readonly localPlayer: 1 | 2;
   private currentFrame = 0;
   private simulatedFrames = 0;
+  private nextLocalSubmitFrame = 0;
   /** 本机已通过 tick/bootstrap 提交过的最大帧号，防止收包追帧时越过输入管道 */
   private highestLocalSubmittedFrame = -1;
   private readonly frames = new Map<number, FrameInputs>();
@@ -30,6 +31,7 @@ export class LockstepSync {
   reset() {
     this.currentFrame = 0;
     this.simulatedFrames = 0;
+    this.nextLocalSubmitFrame = 0;
     this.highestLocalSubmittedFrame = -1;
     this.frames.clear();
   }
@@ -64,6 +66,7 @@ export class LockstepSync {
       this.recordLocalSubmitted(frame);
       send(packet);
     }
+    this.nextLocalSubmitFrame = INPUT_DELAY;
   }
 
   isBootstrapComplete() {
@@ -92,7 +95,8 @@ export class LockstepSync {
   }
 
   tick(localButtons: number, send: (packet: InputPacket) => void) {
-    const submitFrame = this.currentFrame + INPUT_DELAY;
+    const submitFrame = this.nextLocalSubmitFrame;
+    this.nextLocalSubmitFrame += 1;
     const packet: InputPacket = {
       kind: "input",
       frame: submitFrame,
@@ -105,7 +109,7 @@ export class LockstepSync {
     return this.tryAdvancePending();
   }
 
-  /** 双方输入已齐时连续推进，用于收包后立即追帧 */
+  /** 双方输入已齐时连续推进；只由本地 tick 驱动，收包路径仅缓存输入 */
   tryAdvancePending(maxSteps = MAX_CATCHUP_FRAMES) {
     let advanced = 0;
     while (advanced < maxSteps && this.tryAdvance()) {
