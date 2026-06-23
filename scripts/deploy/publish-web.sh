@@ -3,7 +3,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-ENV_FILE="$ROOT/scripts/deploy/env.production.nes.zachuse.top"
+ENV_FILE="$ROOT/scripts/deploy/env.production.zachuse.top"
 TARGET="${DEPLOY_TARGET:-root@43.136.63.40:/var/www/contra/}"
 
 echo "前端已改为 Cloudflare Pages，请见 scripts/deploy/CLOUDFLARE-PAGES.md"

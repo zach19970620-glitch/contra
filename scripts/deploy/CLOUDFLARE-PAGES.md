@@ -41,12 +41,12 @@
 
 | 名称 | 值 |
 |------|-----|
-| `VITE_SIGNALING_URL` | `wss://signal.nes.zachuse.top/ws` |
-| `VITE_ICE_SERVERS` | `[{"urls":"stun:turn.nes.zachuse.top:3478"},{"urls":"turn:turn.nes.zachuse.top:3478","username":"contra","credential":"你的TURN密码"}]` |
+| `VITE_SIGNALING_URL` | `wss://signal.zachuse.top/ws` |
+| `VITE_ICE_SERVERS` | `[{"urls":"stun:turn.zachuse.top:3478"},{"urls":"turn:turn.zachuse.top:3478","username":"contra","credential":"你的TURN密码"}]` |
 
 `VITE_ICE_SERVERS` 须为**单行 JSON**，密码与服务器 Coturn `user=contra:xxx` 一致。
 
-也可本地对照：`scripts/deploy/env.production.nes.zachuse.top`
+也可本地对照：`scripts/deploy/env.production.zachuse.top`
 
 ### 4. 自定义域
 
@@ -60,7 +60,7 @@ SPA 路由：`public/_redirects` 已配置。
 ### 6. 本地预览生产构建
 
 ```bash
-cp scripts/deploy/env.production.nes.zachuse.top apps/web/.env.production.local
+cp scripts/deploy/env.production.zachuse.top apps/web/.env.production.local
 # 编辑 TURN 密码
 npm run build -w apps/web
 npm run preview -w apps/web
@@ -68,33 +68,45 @@ npm run preview -w apps/web
 
 ---
 
-## 二、腾讯云 43.136.63.40（信令 + Coturn）
+## 二、腾讯云 43.136.63.40（OpenCloudOS 9 · 信令 + Coturn）
 
-详见 [README.md](./README.md) 服务器章节；要点：
+系统：**OpenCloudOS 9**（`dnf`）。完整步骤见 [DEPLOY-STEPS.md](./DEPLOY-STEPS.md)。
 
 ```bash
-# 证书（两个子域）
-sudo certbot certonly --nginx -d signal.nes.zachuse.top
-sudo certbot certonly --nginx -d turn.nes.zachuse.top
+# 依赖（或 sudo bash scripts/deploy/opencloudos-server.sh）
+sudo dnf install -y epel-release
+sudo dnf install -y nginx certbot python3-certbot-nginx coturn git curl
+curl -fsSL https://rpm.nodesource.com/setup_20.x | sudo bash -
+sudo dnf install -y nodejs
 
-# Coturn + 信令 systemd（同 README）
-sudo cp scripts/deploy/coturn.nes.zachuse.top.conf /etc/turnserver.conf
-sudo cp scripts/deploy/nginx.signal.nes.zachuse.top.conf /etc/nginx/sites-available/contra-signal
-sudo ln -sf /etc/nginx/sites-available/contra-signal /etc/nginx/sites-enabled/
+# 证书
+sudo certbot certonly --nginx -d signal.zachuse.top
+sudo certbot certonly --nginx -d turn.zachuse.top
+
+# Coturn（OpenCloudOS 路径）
+sudo cp scripts/deploy/coturn.zachuse.top.conf /etc/coturn/turnserver.conf
+sudo systemctl restart coturn
+
+# Nginx（conf.d）
+sudo cp scripts/deploy/nginx.signal.zachuse.top.conf /etc/nginx/conf.d/contra-signal.conf
 sudo nginx -t && sudo systemctl reload nginx
+
+# SELinux
+sudo setsebool -P httpd_can_network_connect 1
 ```
 
-**不要**再使用 `nginx.nes.zachuse.top.conf`（那是整机托管静态页的旧方案）。
+**不要**使用 `nginx.nes.zachuse.top.conf`（旧方案：整机托管静态页）。  
+**不要**把 Coturn 配置拷到 `/etc/turnserver.conf`（Debian 路径，OpenCloudOS 无效）。
 
-防火墙仍放行：443（signal）、UDP/TCP 3478、TCP 5349、UDP 60000–60010。
+防火墙：腾讯云控制台 + 可选 firewalld（见 DEPLOY-STEPS 第 4、5.6 步）。
 
 ---
 
 ## 三、验证
 
 1. **https://nes.zachuse.top** — Pages 前端，能进大厅  
-2. 大厅信令默认应为 `wss://signal.nes.zachuse.top/ws`（构建时已注入）  
-3. [Trickle ICE](https://webrtc.github.io/samples/src/content/peerconnection/trickle-ice/)：`stun:turn.nes.zachuse.top:3478` / TURN 同域，出现 **relay**  
+2. 大厅信令默认应为 `wss://signal.zachuse.top/ws`（构建时已注入）  
+3. [Trickle ICE](https://webrtc.github.io/samples/src/content/peerconnection/trickle-ice/)：`stun:turn.zachuse.top:3478` / TURN 同域，出现 **relay**  
 4. 两人跨网同房，「已模拟 N 帧」递增，WRAM hash 一致  
 
 ---
@@ -103,6 +115,6 @@ sudo nginx -t && sudo systemctl reload nginx
 
 ```
 https://nes.zachuse.top          → Cloudflare Pages（WASM/JS）
-wss://signal.nes.zachuse.top/ws → 43.136.63.40 Nginx → Node :8080
-stun/turn:turn.nes.zachuse.top:3478 → 43.136.63.40 Coturn
+wss://signal.zachuse.top/ws → 43.136.63.40 Nginx → Node :8080
+stun/turn:turn.zachuse.top:3478 → 43.136.63.40 Coturn
 ```

@@ -4,7 +4,9 @@ After=network.target
 
 [Service]
 Type=simple
-User=www-data
+# OpenCloudOS / RHEL 无 www-data；轻量 VPS 用 root 即可
+User=root
+Group=root
 WorkingDirectory=/opt/contra/apps/signaling
 Environment=PORT=8080
 Environment=NODE_ENV=production

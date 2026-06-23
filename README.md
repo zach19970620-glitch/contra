@@ -95,8 +95,8 @@ npm run build
 | 组件 | 地址 |
 |------|------|
 | 前端（Cloudflare Pages） | `https://nes.zachuse.top` |
-| 信令（腾讯云） | `wss://signal.nes.zachuse.top/ws` → `43.136.63.40` |
-| STUN/TURN | `turn.nes.zachuse.top:3478` → `43.136.63.40` |
+| 信令（腾讯云） | `wss://signal.zachuse.top/ws` → `43.136.63.40` |
+| STUN/TURN | `turn.zachuse.top:3478` → `43.136.63.40` |
 
 ### 前端 → Cloudflare Pages
 
@@ -113,26 +113,26 @@ npm run build
 Production 环境变量：
 
 ```bash
-VITE_SIGNALING_URL=wss://signal.nes.zachuse.top/ws
-VITE_ICE_SERVERS=[{"urls":"stun:turn.nes.zachuse.top:3478"},{"urls":"turn:turn.nes.zachuse.top:3478","username":"contra","credential":"与Coturn相同密码"}]
+VITE_SIGNALING_URL=wss://signal.zachuse.top/ws
+VITE_ICE_SERVERS=[{"urls":"stun:turn.zachuse.top:3478"},{"urls":"turn:turn.zachuse.top:3478","username":"contra","credential":"与Coturn相同密码"}]
 ```
 
 自定义域绑定 `nes.zachuse.top`。`signal` / `turn` 子域 **A 记录到 43.136.63.40 且关闭 CF 代理（灰云）**。
 
-### 后端 → 腾讯云轻量
+### 后端 → 腾讯云轻量（OpenCloudOS 9）
 
-信令 + Coturn 部署：**[scripts/deploy/README.md](scripts/deploy/README.md)**（不再在服务器托管静态页）。
+信令 + Coturn：**[scripts/deploy/DEPLOY-STEPS.md](scripts/deploy/DEPLOY-STEPS.md)**（`dnf`、EPEL、`/etc/coturn/`、`/etc/nginx/conf.d/`）。
 
 ```
 https://nes.zachuse.top              → Cloudflare Pages
-wss://signal.nes.zachuse.top/ws      → Nginx → Node :8080
-stun/turn:turn.nes.zachuse.top:3478  → Coturn
+wss://signal.zachuse.top/ws      → Nginx → Node :8080
+stun/turn:turn.zachuse.top:3478  → Coturn
 ```
 
 ### 验证
 
 1. **https://nes.zachuse.top** 打开游戏（Pages）
-2. 大厅信令为 `wss://signal.nes.zachuse.top/ws`
+2. 大厅信令为 `wss://signal.zachuse.top/ws`
 3. [Trickle ICE](https://webrtc.github.io/samples/src/content/peerconnection/trickle-ice/) 出现 **relay**
 4. 两人跨网同房，WRAM hash 一致
 
