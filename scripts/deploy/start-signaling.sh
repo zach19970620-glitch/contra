@@ -1,13 +1,33 @@
 #!/usr/bin/env bash
 set -euo pipefail
-cd /opt/contra/apps/signaling
-NODE="$(command -v node)"
+
+ROOT="/opt/contra"
+SIG="$ROOT/apps/signaling"
+
+log() {
+  echo "[start-signaling] $*" >&2
+}
+
+cd "$SIG"
+
+NODE="$(command -v node || true)"
 if [[ -z "$NODE" ]]; then
-  echo "node not found in PATH" >&2
+  log "node 不在 PATH 中"
+  log "修复: curl -fsSL https://rpm.nodesource.com/setup_20.x | bash - && dnf install -y nodejs"
   exit 127
 fi
-if [[ ! -f dist/index.js ]]; then
-  echo "missing dist/index.js — run: cd /opt/contra && npm run build -w apps/signaling" >&2
+
+if [[ ! -f "$SIG/dist/index.js" ]]; then
+  log "缺少 $SIG/dist/index.js"
+  log "修复: cd $ROOT && npm install && npm run build -w apps/signaling"
   exit 1
 fi
-exec "$NODE" dist/index.js
+
+if [[ ! -d "$ROOT/node_modules/ws" && ! -d "$SIG/node_modules/ws" ]]; then
+  log "缺少 ws 依赖"
+  log "修复: cd $ROOT && npm install"
+  exit 1
+fi
+
+log "启动 $NODE ($("$NODE" -v)) → dist/index.js"
+exec "$NODE" "$SIG/dist/index.js"

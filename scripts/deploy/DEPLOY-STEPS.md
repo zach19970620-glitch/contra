@@ -247,15 +247,19 @@ sudo systemctl status coturn
 
 ## 第 9 部分：启动信令服务（Node）
 
-- [ ] **9.1** 确认 Node 与编译产物存在：
+- [ ] **9.1** 编译信令（**必须**，`dist/` 不在 Git 仓库里）：
 
 ```bash
-command -v node && node -v    # 应 >= v20
+cd /opt/contra
+npm install
+npm run build -w apps/signaling
+# 或：sudo bash scripts/deploy/build-signaling.sh
 ls -la /opt/contra/apps/signaling/dist/index.js
-# 若没有 dist：cd /opt/contra && npm run build -w apps/signaling
 ```
 
-- [ ] **9.2** 安装 systemd 服务（启动脚本会自动查找 `node` 路径，避免 203/EXEC）：
+若 `tsc: command not found`：说明 dev 依赖未装，不要加 `--omit=dev`，必须完整 `npm install`。
+
+- [ ] **9.2** 安装 systemd 服务：
 
 ```bash
 sudo chmod +x /opt/contra/scripts/deploy/start-signaling.sh
@@ -269,11 +273,19 @@ sudo systemctl start contra-signaling
 
 ```bash
 sudo systemctl status contra-signaling
-curl -I http://127.0.0.1:8080   # 可能返回 404/426，说明进程在监听即可
+# 若失败，看具体原因：
+sudo journalctl -u contra-signaling -n 30 --no-pager
+curl -I http://127.0.0.1:8080
 ```
 
-若仍失败 `status=203/EXEC`：执行 `which node`；若为空，按第 5.3 步重装 Node.js。  
-若提示 `missing dist/index.js`：在 `/opt/contra` 执行 `npm run build -w apps/signaling`。
+手动试跑（应看到 `[signaling] ws://0.0.0.0:8080`）：
+
+```bash
+sudo bash /opt/contra/scripts/deploy/start-signaling.sh
+# Ctrl+C 停止后，再 systemctl start
+```
+
+若仍失败：把 `journalctl` 输出贴出来。
 
 ---
 
