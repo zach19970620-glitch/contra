@@ -48,6 +48,7 @@ export default function Game({ session, onLeave }: Props) {
     let channelReady = false;
     let remoteHello = false;
     let pendingSyncStart = false;
+    let helloRetryTimer: ReturnType<typeof setInterval> | null = null;
     const pendingInputPackets: InputPacket[] = [];
     let renderer: NesCanvasRenderer | null = null;
     let canvasCtx: CanvasRenderingContext2D | null = null;
@@ -140,6 +141,13 @@ export default function Game({ session, onLeave }: Props) {
       }
     }
 
+    function stopHelloRetry() {
+      if (helloRetryTimer !== null) {
+        clearInterval(helloRetryTimer);
+        helloRetryTimer = null;
+      }
+    }
+
     function startLockstepTimer() {
       stopLockstepTimer();
       lockstepTimer = setInterval(runLockstepTick, FRAME_MS);
@@ -228,7 +236,15 @@ export default function Game({ session, onLeave }: Props) {
             return;
           }
           if (channelReady) {
-            setStatus("WebRTC 已连接，等待双方同步…");
+            if (session.isHost) {
+              setStatus(
+                remoteHello
+                  ? "WebRTC 已连接，正在发起同步…"
+                  : "WebRTC 已连接，等待对方 hello…",
+              );
+            } else {
+              setStatus("WebRTC 已连接，等待 P1 发起同步…");
+            }
           }
         };
 
@@ -278,6 +294,7 @@ export default function Game({ session, onLeave }: Props) {
           if (syncStarted) {
             return;
           }
+          stopHelloRetry();
           syncStarted = true;
           lockstepReady = false;
           stopLockstepTimer();
@@ -305,6 +322,22 @@ export default function Game({ session, onLeave }: Props) {
           }
         };
 
+        const sendHello = () => {
+          net?.send({ kind: "hello", playerId: session.playerId });
+        };
+
+        const startHelloRetry = () => {
+          stopHelloRetry();
+          helloRetryTimer = setInterval(() => {
+            if (syncStarted || !channelReady) {
+              stopHelloRetry();
+              return;
+            }
+            sendHello();
+            tryBeginAsHost();
+          }, 500);
+        };
+
         const handleNetPacket = (packet: NetPacket) => {
           if (packet.kind === "sync-start") {
             if (channelReady) {
@@ -317,7 +350,9 @@ export default function Game({ session, onLeave }: Props) {
           if (packet.kind === "hello") {
             if (packet.playerId !== session.playerId) {
               remoteHello = true;
+              sendHello();
               tryBeginAsHost();
+              updateSyncStatus?.();
             }
             return;
           }
@@ -353,7 +388,8 @@ export default function Game({ session, onLeave }: Props) {
           onPacket: handleNetPacket,
           onReady: () => {
             channelReady = true;
-            net?.send({ kind: "hello", playerId: session.playerId });
+            sendHello();
+            startHelloRetry();
             tryBeginAsHost();
             if (pendingSyncStart) {
               beginLockstep();
@@ -408,6 +444,7 @@ export default function Game({ session, onLeave }: Props) {
     return () => {
       disposed = true;
       bootGeneration += 1;
+      stopHelloRetry();
       stopLockstepTimer();
       cancelAnimationFrame(raf);
       window.removeEventListener("keydown", onKeyDown);
