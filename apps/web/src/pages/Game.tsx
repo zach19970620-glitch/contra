@@ -24,6 +24,7 @@ type Props = {
 export default function Game({ session, onLeave }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const hashRef = useRef<HTMLDivElement>(null);
+  const statusRef = useRef<HTMLSpanElement>(null);
   const [status, setStatus] = useState("初始化…");
   const [determinism, setDeterminism] = useState<string | null>(null);
   const isSolo = session.mode === "solo";
@@ -41,7 +42,6 @@ export default function Game({ session, onLeave }: Props) {
     let net: WebRtcSession | null = null;
     let syncStarted = false;
     let lockstepReady = false;
-    let lockstepTimer: ReturnType<typeof setInterval> | null = null;
     let localSyncReady = false;
     let remoteSyncReady = false;
     let pendingRemoteSyncReady = false;
@@ -55,6 +55,9 @@ export default function Game({ session, onLeave }: Props) {
     let imageData: ImageData | null = null;
     let pixelBuffer: Uint8ClampedArray | null = null;
     let soloFrame = 0;
+    let lastBlitFrame = -1;
+    let simAccumulator = 0;
+    let lastLoopTime = 0;
     let lastHudUpdate = 0;
     let lastStatusUpdate = 0;
     let audioScratch: Float32Array | null = null;
@@ -91,9 +94,29 @@ export default function Game({ session, onLeave }: Props) {
       }
     }
 
-    function updateHud(frame: number) {
+    function blitIfFrameChanged(frame: number) {
+      if (frame === lastBlitFrame) {
+        return;
+      }
+      lastBlitFrame = frame;
+      blitFramebuffer();
+    }
+
+    const titlePrefix = isSolo
+      ? "单机模式"
+      : `房间 ${session.roomId} · P${session.playerId}`;
+
+    function setGameplayStatus(message: string) {
+      if (statusRef.current) {
+        statusRef.current.textContent = `${titlePrefix} · ${message}`;
+        return;
+      }
+      setStatus(message);
+    }
+
+    function updateHud(frame: number, force = false) {
       const now = performance.now();
-      if (now - lastHudUpdate < HUD_UPDATE_MS) {
+      if (!force && now - lastHudUpdate < HUD_UPDATE_MS) {
         return;
       }
       lastHudUpdate = now;
@@ -103,7 +126,15 @@ export default function Game({ session, onLeave }: Props) {
         hashRef.current.textContent = `WRAM ${hash} · 音频 ~${latency}ms`;
       }
       if (isSolo && frame > 0) {
-        setStatus(`运行中 · 帧 ${frame}`);
+        setGameplayStatus(`运行中 · 帧 ${frame}`);
+      }
+    }
+
+    function stepEmulatorFrame(p1: number, p2: number) {
+      emulator.setInputs(p1, p2);
+      emulator.stepFrame();
+      if (!audio.isPullMode()) {
+        pushAudio();
       }
     }
 
@@ -114,31 +145,11 @@ export default function Game({ session, onLeave }: Props) {
       soloFrame += 1;
     }
 
-    function renderFrame(frame: number) {
-      blitFramebuffer();
-      if (!audio.isPullMode()) {
-        pushAudio();
-      }
-      updateHud(frame);
-    }
-
     function runLockstepTick() {
       if (!lockstepReady || !lockstep) {
         return;
       }
       lockstep.tick(input.getLocalButtons(), (packet) => net?.send(packet));
-      const now = performance.now();
-      if (now - lastStatusUpdate >= HUD_UPDATE_MS) {
-        lastStatusUpdate = now;
-        updateSyncStatus?.();
-      }
-    }
-
-    function stopLockstepTimer() {
-      if (lockstepTimer !== null) {
-        clearInterval(lockstepTimer);
-        lockstepTimer = null;
-      }
     }
 
     function stopHelloRetry() {
@@ -146,11 +157,6 @@ export default function Game({ session, onLeave }: Props) {
         clearInterval(helloRetryTimer);
         helloRetryTimer = null;
       }
-    }
-
-    function startLockstepTimer() {
-      stopLockstepTimer();
-      lockstepTimer = setInterval(runLockstepTick, FRAME_MS);
     }
 
     async function boot() {
@@ -218,7 +224,7 @@ export default function Game({ session, onLeave }: Props) {
         updateSyncStatus = () => {
           const debug = lockstep!.getDebugState();
           if (lockstepReady) {
-            setStatus(
+            setGameplayStatus(
               `Lockstep 同步中 · 已模拟 ${debug.simulated} 帧 · 待推进 ${debug.frame} · P1:${debug.hasP1 ? "✓" : "×"} P2:${debug.hasP2 ? "✓" : "×"}`,
             );
             return;
@@ -259,8 +265,9 @@ export default function Game({ session, onLeave }: Props) {
             return;
           }
           lockstepReady = true;
+          simAccumulator = 0;
+          lastLoopTime = performance.now();
           runLockstepTick();
-          startLockstepTimer();
           updateSyncStatus?.();
         };
 
@@ -286,6 +293,9 @@ export default function Game({ session, onLeave }: Props) {
             return;
           }
           lockstep!.applyInput(packet);
+          if (lockstepReady) {
+            lockstep!.tryAdvancePending();
+          }
           markBootstrapComplete();
           updateSyncStatus?.();
         };
@@ -297,7 +307,7 @@ export default function Game({ session, onLeave }: Props) {
           stopHelloRetry();
           syncStarted = true;
           lockstepReady = false;
-          stopLockstepTimer();
+          lastBlitFrame = -1;
           localSyncReady = false;
           remoteSyncReady = false;
           emulator.reset();
@@ -375,9 +385,8 @@ export default function Game({ session, onLeave }: Props) {
         };
 
         lockstep!.setStepHandler((frame, p1, p2) => {
-          emulator.setInputs(p1, p2);
-          emulator.stepFrame();
-          renderFrame(frame);
+          stepEmulatorFrame(p1, p2);
+          lastBlitFrame = frame;
         });
 
         net = new WebRtcSession({
@@ -404,20 +413,37 @@ export default function Game({ session, onLeave }: Props) {
         });
       }
 
-      const loop = () => {
+      const loop = (now: number) => {
         if (disposed) {
           return;
         }
+
+        if (lastLoopTime === 0) {
+          lastLoopTime = now;
+        }
+        const dt = Math.min(now - lastLoopTime, 100);
+        lastLoopTime = now;
 
         try {
           if (isSolo) {
             if (audio.needsPull()) {
               audio.drainPull();
             }
-            blitFramebuffer();
+            blitIfFrameChanged(soloFrame);
             updateHud(soloFrame);
+          } else if (lockstepReady && lockstep) {
+            simAccumulator += dt;
+            while (simAccumulator >= FRAME_MS) {
+              runLockstepTick();
+              simAccumulator -= FRAME_MS;
+            }
+            blitFramebuffer();
+            if (now - lastStatusUpdate >= HUD_UPDATE_MS) {
+              lastStatusUpdate = now;
+              updateSyncStatus?.();
+              updateHud(lockstep.getSimulatedFrames());
+            }
           } else {
-            const now = performance.now();
             if (now - lastStatusUpdate >= HUD_UPDATE_MS) {
               lastStatusUpdate = now;
               updateSyncStatus?.();
@@ -445,7 +471,6 @@ export default function Game({ session, onLeave }: Props) {
       disposed = true;
       bootGeneration += 1;
       stopHelloRetry();
-      stopLockstepTimer();
       cancelAnimationFrame(raf);
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
@@ -500,7 +525,7 @@ export default function Game({ session, onLeave }: Props) {
         <button className="secondary" onClick={() => void runDeterminismCheck()}>
           确定性自检
         </button>
-        <span className="status">
+        <span className="status" ref={statusRef}>
           {title} · {status}
         </span>
       </div>

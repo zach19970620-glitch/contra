@@ -1,7 +1,9 @@
 import type { InputPacket } from "./webrtc";
 
-/** 提前 1 帧提交输入，兼顾延迟与管道复杂度 */
-const INPUT_DELAY = 1;
+/** 提前提交输入，公网抖动大时可改为 2（多 ~16ms 延迟，更少卡顿） */
+const INPUT_DELAY = 2;
+/** 输入到齐后单次最多追帧，避免长时间停顿后雪崩 */
+const MAX_CATCHUP_FRAMES = 4;
 
 type FrameInputs = {
   p1?: number;
@@ -88,7 +90,16 @@ export class LockstepSync {
     };
     this.applyInput(packet);
     send(packet);
-    return this.tryAdvance();
+    return this.tryAdvancePending(1);
+  }
+
+  /** 双方输入已齐时连续推进，用于收包后立即追帧 */
+  tryAdvancePending(maxSteps = MAX_CATCHUP_FRAMES) {
+    let advanced = 0;
+    while (advanced < maxSteps && this.tryAdvance()) {
+      advanced += 1;
+    }
+    return advanced;
   }
 
   tryAdvance() {
