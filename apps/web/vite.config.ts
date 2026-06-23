@@ -12,6 +12,23 @@ const hasCerts = fs.existsSync(certPath) && fs.existsSync(keyPath);
 
 export default defineConfig({
   plugins: [react()],
+  build: {
+    rollupOptions: {
+      input: {
+        main: path.resolve(rootDir, "index.html"),
+        "nes-audio-processor": path.resolve(
+          rootDir,
+          "src/audio/nes-audio-processor.ts",
+        ),
+      },
+      output: {
+        entryFileNames: (chunk) =>
+          chunk.name === "nes-audio-processor"
+            ? "assets/nes-audio-processor.js"
+            : "assets/[name]-[hash].js",
+      },
+    },
+  },
   server: {
     host: true,
     port: 5173,

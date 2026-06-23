@@ -1,5 +1,12 @@
 import { SharedRingBuffer } from "./ring-buffer";
 
+function workletModuleUrl(): string {
+  if (import.meta.env.DEV) {
+    return new URL("./nes-audio-processor.ts", import.meta.url).href;
+  }
+  return `${import.meta.env.BASE_URL}assets/nes-audio-processor.js`;
+}
+
 const SAMPLE_RATE = 48_000;
 /** ~3 帧音频（60fps），目标播放延迟 */
 const TARGET_LATENCY_MS = 50;
@@ -27,9 +34,7 @@ export class NesAudioEngine {
       sampleRate: SAMPLE_RATE,
       latencyHint: "interactive",
     });
-    await this.context.audioWorklet.addModule(
-      new URL("./nes-audio-processor.ts", import.meta.url),
-    );
+    await this.context.audioWorklet.addModule(workletModuleUrl());
 
     this.ring = new SharedRingBuffer(RING_CAPACITY);
     this.node = new AudioWorkletNode(this.context, "nes-audio-processor", {
